@@ -69,7 +69,7 @@ function Copy-Games([string]$to) {
     Copy-Item -LiteralPath $zap -Destination (Join-Path $to "Llamazap (Falcon030).st")
     python -P (Join-Path $repo "Tools\make_release_disks.py") $to
     if ($LASTEXITCODE) { throw "make_release_disks.py failed" }
-    foreach ($f in "Llamatron ST.msa", "Trip-A-Tron\TRIP1.TOS", "Trip-A-Tron\MANUAL.TXT", "docs\PHOTONSTORM.TXT", "Revenge of the Mutant Camels (1MB STE).stx",
+    foreach ($f in "Llamatron ST.msa", "Trip-A-Tron\TRIP1.TOS", "Trip-A-Tron\MANUAL.TXT", "docs\PHOTONSTORM.TXT", "docs\LLAMAZAP.TXT", "Revenge of the Mutant Camels (1MB STE).stx",
                    "Revenge of the Mutant Camels (TT Megamix).st", "Llamazap (Falcon030).st",
                    "Andes Attack.st", "Defender 2.st", "Hardcore.st", "Photon Storm.st") {
         if (-not (Test-Path -LiteralPath (Join-Path $to $f))) { throw "game\$f missing" }

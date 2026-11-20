@@ -23,6 +23,10 @@ bool MenuOpen();
 void DrawOverlay(SDL_Renderer* r, float view_h);
 // After every RunFrame: the remaster's images drawn, the frame shown handed to remaster_falcon.
 void AfterFrame(st::Machine* m);
+// The launcher's preview (preview.cpp): its own machine's input for frame f (A through the intro and menus, then
+// flying about firing in the first stage), the manual check answered, 50 frames a second. In a stage (play).
+void PreviewFrame(st::Machine* m, int f);
+bool InPlay(const st::Machine& m);
 // A line over the picture, or null.
 const char* Hint(st::Machine* m);
 

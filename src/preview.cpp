@@ -10,6 +10,7 @@
 
 #include "cpu.h"
 #include "disk.h"
+#include "llamazap.h"
 #include "log.h"
 #include "machine.h"
 #include "settings.h"
@@ -137,6 +138,12 @@ bool ScriptFor(const games::Game& g, Script* s) {
     s->ready = [](const st::Machine&, int f) { return f >= 1560; };
   } else if (id == "photonstorm") {
     s->ready = [](const st::Machine&, int f) { return f >= 1200; };
+  } else if (id == "llamazap") {
+    // Through the intro and menus into the first stage, then flying about firing (llamazap.cpp; the manual check
+    // answered as in play). Shown once in a stage; after a game over it starts another.
+    s->input = [](st::Machine& m, int f) { llamazap::PreviewFrame(&m, f); };
+    s->ready = [](const st::Machine& m, int) { return llamazap::InPlay(m); };
+    s->cpu = [](const st::Machine&, int) { return 1; };  // (the 68030's own 16 MHz draws every frame)
   } else {
     return false;  // (user disks, the Settings disk)
   }
@@ -186,6 +193,7 @@ bool Start(Run& r, const games::Game& g) {
                                 : disk::LoadPrg(it->second, &program, &error);
   if (!ok) return LOG("preview: %s: %s", g.id.c_str(), error.c_str()), false;
   r.m = std::make_unique<st::Machine>();
+  r.m->SetFalcon(g.falcon);
   if (!r.m->Load(program, std::move(files), std::string(), &error))  // (no save folder: it writes nothing)
     return LOG("preview: %s: %s", g.id.c_str(), error.c_str()), false;
   r.m->SetSampleRate(48000);
@@ -209,7 +217,7 @@ void Step(Run& r) {
   r.m->SetCpuSpeed(r.script.cpu(*r.m, r.frame));
   r.script.input(*r.m, r.frame);
   r.m->RunFrame();
-  r.m->Audio().clear();
+  r.m->Audio().clear(), r.m->AudioSide().clear();
   ++r.frame;
   if (!r.ready && r.script.ready(*r.m, r.frame)) r.ready = true, LOG("preview: ready after %d frames", r.frame);
 }
@@ -243,10 +251,20 @@ void WarmUp(Run& r, double budget_ms) {
 }
 
 void Push(const st::Machine& m) {
-  if (!g_r || m.FrameWidth() != st::kScreenW) return;
+  // Low resolution (320 x 200) or a Falcon mode (Llamazap: 384 x 240, the same proportions); not medium.
+  const int w = m.FrameWidth(), h = m.FrameHeight();
+  if (!g_r || w == st::kMaxFrameW || w * h > st::kFrameCapacity) return;
+  if (g_frame) {
+    float tw = 0, th = 0;
+    SDL_GetTextureSize(g_frame, &tw, &th);
+    if (int(tw) != w || int(th) != h) {  // (another size: new textures, the trail starts again)
+      SDL_DestroyTexture(g_frame), SDL_DestroyTexture(g_trail);
+      g_frame = g_trail = nullptr, g_have_frame = false;
+    }
+  }
   if (!g_frame) {
-    g_frame = SDL_CreateTexture(g_r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, st::kScreenW, st::kScreenH);
-    g_trail = SDL_CreateTexture(g_r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, st::kScreenW, st::kScreenH);
+    g_frame = SDL_CreateTexture(g_r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+    g_trail = SDL_CreateTexture(g_r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w, h);
     if (!g_frame || !g_trail) return;
     SDL_SetTextureScaleMode(g_frame, SDL_SCALEMODE_LINEAR);
     SDL_SetTextureScaleMode(g_trail, SDL_SCALEMODE_LINEAR);
@@ -256,21 +274,21 @@ void Push(const st::Machine& m) {
   // Flash guard: a frame much brighter than the picture has been (an explosion's flash, a strobe) goes into the
   // trail fainter, so a flash is a soft swell behind the disks, not a blink.
   double sum = 0;
-  for (int i = 0; i < st::kScreenW * st::kScreenH; i += 7) {
+  for (int i = 0; i < w * h; i += 7) {
     uint32_t c = m.Frame()[i];
     sum += ((c >> 16 & 255) * 3 + (c >> 8 & 255) * 6 + (c & 255)) / 2550.0;
   }
-  const double bright = sum / (st::kScreenW * st::kScreenH / 7.0);
+  const double bright = sum / (w * h / 7.0);
   if (!g_have_frame) g_bright = bright;
   const float calm = float(std::min(1.0, (g_bright + 0.06) / std::max(bright, 1e-3)));
   g_bright += (bright - g_bright) * 0.04;
   void* px = nullptr;
   int pitch = 0;
   if (!SDL_LockTexture(g_frame, nullptr, &px, &pitch)) return;
-  for (int y = 0; y < st::kScreenH; ++y) {
-    const uint32_t* src = m.Frame() + y * st::kScreenW;
+  for (int y = 0; y < h; ++y) {
+    const uint32_t* src = m.Frame() + y * w;
     uint32_t* dst = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(px) + y * pitch);
-    for (int x = 0; x < st::kScreenW; ++x) dst[x] = src[x] | 0xFF000000u;
+    for (int x = 0; x < w; ++x) dst[x] = src[x] | 0xFF000000u;
   }
   SDL_UnlockTexture(g_frame);
   // Into the trail: what was there fades a little, the new frame goes over it (persistence, like a projector's
@@ -422,9 +440,9 @@ bool Test(const std::vector<games::Game>& games, const std::string& id, int step
       while (!r->ready && r->frame < 20000) Step(*r);
       for (int n = 0; n < count; ++n) {
         for (int i = 0; i < step; ++i) Step(*r);
-        std::vector<uint32_t> px(r->m->Frame(), r->m->Frame() + st::kScreenW * st::kScreenH);
-        if (SDL_Surface* s = SDL_CreateSurfaceFrom(st::kScreenW, st::kScreenH, SDL_PIXELFORMAT_ARGB8888, px.data(),
-                                                  st::kScreenW * 4)) {
+        const int w = r->m->FrameWidth(), h = r->m->FrameHeight();
+        std::vector<uint32_t> px(r->m->Frame(), r->m->Frame() + w * h);
+        if (SDL_Surface* s = SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_ARGB8888, px.data(), w * 4)) {
           SDL_SaveBMP(s, (dir + "/" + id + "_" + std::to_string(n) + ".bmp").c_str());
           SDL_DestroySurface(s);
         }

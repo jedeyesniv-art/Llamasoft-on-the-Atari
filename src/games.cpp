@@ -254,6 +254,9 @@ std::vector<Known> KnownGames() {
   k.back().game.mode = input::Mode::kLlamazap;
   k.back().game.falcon = true;
   k.back().game.year = 1993;
+  // Docs: the manual's English pages, typed from Atarimania's scans (owner 2026-11-20; Private\docs, the release's
+  // game\docs).
+  k.back().game.docs_text = "LLAMAZAP.TXT";
   k.back().game.help = {"LLAMAZAP  -  JEFF MINTER, FALCON030 1993", "",
                         "Defend the beasts of the galaxy. (The Falcon's",
                         "Jaguar pad: the keypad buys power-ups.)", "",

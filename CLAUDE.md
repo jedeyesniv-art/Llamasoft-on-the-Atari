@@ -167,13 +167,22 @@ elease\Llamatron-<ver>-windows.zip (no game
   (worst ~5.5). Off in verify mode. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
+- Docs (2026-11-20, owner): Private\docs\LLAMAZAP.TXT = the manual's English pages 1-7 typed from Atarimania's
+  scans (Private
+ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 6; no OCR engine
+  here: read by eye from 2x crops). Game::docs_text, packaged like Photon Storm's (game\docs, checked). Checked
+  against the protection: p7 para 1 line 1 word 12 = "you". Kept out of git (Atari's manual).
 - Rumble (2026-11-20; rumble.cpp, setting rumble as the others): lives $527F2 (the HUD's hearts, 5 at the start,
   1 -> 0 = game over) = the heavy pulse; kills = the score digits (a word each, $4B5B0..$4B5BF) going up in play;
   tokens $4B544 + 1 = a blip (pickup), fewer = a firmer pulse (a power-up bought). Verified scripted (log "rumble:";
   pickup / purchase by --poke=N:@4B544:v). Not yet felt by the owner on a real pad. --dump / --dump-every write
   the whole RAM now (4 MB on the Falcon).
-- Next (ideas): owner's verdict on the right-stick keypad; launcher
-  preview; remap list; a label on sheet 3's empty row (stand-in for now).
+- Launcher preview (2026-11-20): preview.cpp runs it on a Falcon machine (SetFalcon before Load; Push takes the
+  frame's own size: 384 x 240, textures remade on a change); llamazap::PreviewFrame = the manual check hooks, the
+  divisor (llamazap_50fps), A every 6 s outside play (intro, menus, game over), key 6 on SELECT SHIP, then right /
+  left 6 s each (fire let go 20 frames at the turn), drifting up / down; ready = in a stage (~2240 frames). CPU 1.
+  Steady 0.54 ms a launcher frame. Test: --preview-test=llamazap.
+- Next (ideas): owner's verdict on the right-stick keypad; remap list; a label on sheet 3's empty row (stand-in for now).
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)
 - Porting the next game: REMASTER.md (recipe, verification, pitfalls, per-game notes). Owner: run-ahead on

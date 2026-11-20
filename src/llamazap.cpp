@@ -638,6 +638,36 @@ void Reset() {
 
 bool MenuOpen() { return g_menu.open; }
 
+bool InPlay(const st::Machine& m) { return InLevel(m); }
+
+void PreviewFrame(st::Machine* m, int f) {
+  if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
+    Put16(m, kCheck, 0x4AFC);
+    m->AddHook(kCheck, OnManualCheck);
+  }
+  if (Get16(*m, kEntryCall) == 0x61FF && Get32(*m, kEntryCall + 2) == 0xBF60) {
+    Put16(m, kEntryCall, 0x4AFC);
+    m->AddHook(kEntryCall, OnEntryScreen);
+  }
+  if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) Put16(m, kDivisor, g_50fps ? 1 : 2);
+  uint32_t bits = 0;
+  if (!InLevel(*m)) {
+    if (f % 300 >= 297) bits = st::kJagA;  // (a tap every 6 s: past the intro, the menus, a game over)
+  } else if (int16_t(Get16(*m, kShipSelect)) >= 0 && KeypadLevel(*m)) {
+    if (f % 60 >= 57) bits = st::kJagKey0 << 6;  // SELECT SHIP: the right-hand column's (the beginner's ship)
+  } else {
+    // Six seconds one way, six the other (fire let go at the turn so the ship faces the way it goes), drifting
+    // up and down.
+    const int phase = f % 600;
+    bits |= phase < 300 ? st::kJagRight : st::kJagLeft;
+    if (phase % 300 >= 20) bits |= st::kJagA;
+    const double v = std::sin(f * 0.013) + 0.5 * std::sin(f * 0.041);
+    if (v > 0.5) bits |= st::kJagUp;
+    if (v < -0.5) bits |= st::kJagDown;
+  }
+  m->SetJagpad(bits);
+}
+
 void LoadSettings() {
   g_50fps = settings::Get("llamazap_50fps", 1) != 0;
   g_stage = std::clamp(int(settings::Get("llamazap_stage", 0)), 0, 25);
