@@ -2,6 +2,12 @@
 Title from 1.3.0 (owner 2026-11-01); the exe is still llamatron.exe, the repo Llamatron-PC-Recomp. Labels (2026-11-07): the
 owner redrew every label digitally (res/labels/sheet-1..3.png, committed: no room in them); make_labels.py SHEETS
 cuts each cell, border included, scaled evenly onto white (the bottom row's cells are taller: narrower boxes).
+Real labels (2026-11-20, owner: "real where we have them", full colour): Atarimania's disk scans of Llamazap, Andes
+Attack, Super Gridrunner, Photon Storm (ARC) and the 1 MB STE Camels (Private/labels-real, not in git; none exist
+for Llamatron, Defender II, Hardcore, Trip-A-Tron, TT Megamix) replace the drawn ones there: make_labels.py SCANS
+(boxes in the scans) -> 384 x 294 256-colour PNGs in labels.inc (png = true; kLabels, the table, is generated
+too), SDL_LoadPNG_IO in the launcher; disk body colours sampled from the scans (games.cpp). Without the scans
+make_labels.py falls back to the drawn sheets.
 
 Hobby project, started 2026-10-22 after the Galaga Legions DX port (C:\GalagaRecomp, same owner and toolchain).
 Llamatron is shareware ("please spread this game everywhere", shareware screen at boot); the disk image is still
@@ -182,7 +188,7 @@ ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 
   divisor (llamazap_50fps), A every 6 s outside play (intro, menus, game over), key 6 on SELECT SHIP, then right /
   left 6 s each (fire let go 20 frames at the turn), drifting up / down; ready = in a stage (~2240 frames). CPU 1.
   Steady 0.54 ms a launcher frame. Test: --preview-test=llamazap.
-- Next (ideas): owner's verdict on the right-stick keypad; remap list; a label on sheet 3's empty row (stand-in for now).
+- Next (ideas): owner's verdict on the right-stick keypad; remap list.
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)
 - Porting the next game: REMASTER.md (recipe, verification, pitfalls, per-game notes). Owner: run-ahead on

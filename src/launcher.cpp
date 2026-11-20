@@ -97,24 +97,7 @@ Place PlaceAt(float d) {
   return p;
 }
 
-// The built-in labels by game id (Tools/make_labels.py -> labels.inc).
-struct BuiltIn {
-  const char* id;
-  const unsigned char* data;
-  size_t size;
-};
-const BuiltIn kBuiltIn[] = {
-    {"llamatron", kLabel_llamatron, sizeof(kLabel_llamatron)},
-    {"gridrunner", kLabel_gridrunner, sizeof(kLabel_gridrunner)},
-    {"tripatron", kLabel_tripatron, sizeof(kLabel_tripatron)},
-    {"rmc", kLabel_rmc, sizeof(kLabel_rmc)},
-    {"defender2", kLabel_defender2, sizeof(kLabel_defender2)},
-    {"andes", kLabel_andes, sizeof(kLabel_andes)},
-    {"hardcore", kLabel_hardcore, sizeof(kLabel_hardcore)},
-    {"photonstorm", kLabel_photonstorm, sizeof(kLabel_photonstorm)},
-    {"rmctt", kLabel_rmctt, sizeof(kLabel_rmctt)},
-    {"settings", kLabel_settings, sizeof(kLabel_settings)},
-};
+// The built-in labels by game id: kLabels in labels.inc (Tools/make_labels.py).
 
 }  // namespace
 
@@ -136,14 +119,21 @@ Launcher::~Launcher() {
     if (t) SDL_DestroyTexture(t);
 }
 
-// The owner's hand-written labels (grey ink on white, unpacked to textures); a user disk's picture
+// The owner's drawn labels (grey ink on white, unpacked to textures) and the real ones (colour PNGs); a user disk's picture
 // (<image name>.png next to it), or a label written for it.
 void Launcher::BuildLabels() {
   std::vector<uint32_t> pixels(size_t(kLabelW) * kLabelH);
   for (const games::Game& g : *games_) {
     SDL_Texture* tex = nullptr;
-    for (const BuiltIn& b : kBuiltIn) {
+    for (const LabelData& b : kLabels) {
       if (g.user || g.id != b.id) continue;
+      if (b.png) {  // a real label from a disk scan, in colour
+        if (SDL_Surface* s = SDL_LoadPNG_IO(SDL_IOFromConstMem(b.data, b.size), true)) {
+          tex = SDL_CreateTextureFromSurface(r_, s);
+          SDL_DestroySurface(s);
+        }
+        continue;
+      }
       size_t at = 0;
       for (size_t k = 0; k + 1 < b.size && at < pixels.size(); k += 2) {
         uint32_t v = b.data[k];

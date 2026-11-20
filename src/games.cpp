@@ -57,7 +57,7 @@ std::vector<Known> KnownGames() {
 
   g = {};
   g.id = "gridrunner", g.name = "SUPER GRIDRUNNER", g.program = "GRIDRUNR.PRG", g.shared_saves = true;
-  g.mode = input::Mode::kGridrunner, g.body = {0.60f, 0.10f, 0.10f, 1}, g.band = {0.62f, 0.25f, 0.85f, 1};
+  g.mode = input::Mode::kGridrunner, g.body = {0.05f, 0.08f, 0.46f, 1}, g.band = {0.62f, 0.25f, 0.85f, 1};
   g.help = {"SUPER GRIDRUNNER  -  JEFF MINTER, 1989", "",
             "Shoot the snakes. Mind the zappers.", "",
             "LEFT STICK           move the ship (d-pad L/R: slowly)",
@@ -111,7 +111,7 @@ std::vector<Known> KnownGames() {
   // Same code as the 512K one at other addresses: hook $3DD3E, play $111DE, pause $1056C, bonus $112A2,
   // name $194A8. Docs: README.TXT on the disk (Yak's notes). Preferred: the first of an id found wins.
   wip("rmc", "MUTANT CAMELS", "REVSTE1M.TOS", "REVENGE OF THE MUTANT CAMELS  -  JEFF MINTER (1MB STE)",
-      "Giant camels against the forces of evil.", {0.62f, 0.40f, 0.10f, 1}, {0.20f, 0.65f, 0.90f, 1});
+      "Giant camels against the forces of evil.", {0.90f, 0.88f, 0.80f, 1}, {0.20f, 0.65f, 0.90f, 1});
   k.back().game.play_at = 0x3DD3E, k.back().game.play_value = 0x111DE;
   k.back().game.play_value2 = 0x112A2, k.back().game.play_value3 = 0x194A8;
   // the menus (VBL-timed; not the change-overs between: CPU-timed), the warp and the oasis between levels
@@ -121,7 +121,7 @@ std::vector<Known> KnownGames() {
   k.back().game.ste = true;
   k.back().game.year = 1991;  // "created autumn 1991" (its credits)
   wip("rmc", "MUTANT CAMELS", "REVENGE.TOS", "REVENGE OF THE MUTANT CAMELS  -  JEFF MINTER",
-      "Giant camels against the forces of evil.", {0.62f, 0.40f, 0.10f, 1}, {0.20f, 0.65f, 0.90f, 1});
+      "Giant camels against the forces of evil.", {0.90f, 0.88f, 0.80f, 1}, {0.20f, 0.65f, 0.90f, 1});
   // VBL $1B4B6 calls the hook at $42E18: $1118E play, $11252 the end-of-wave bonus, $193F0 the high score name
   // (all VBL-timed: the name's cursor ends on the same letter at x1 and x8).
   k.back().game.play_at = 0x42E18, k.back().game.play_value = 0x1118E;
@@ -195,7 +195,7 @@ std::vector<Known> KnownGames() {
   k.back().game.options = {{"invincible", "INVINCIBLE", {"OFF", "ON"}},
                            {"friendly", "FRIENDLY SPRITES", {"OFF", "ON"}}};
   wip("andes", "ANDES ATTACK", "ANDES.BOY", "ANDES ATTACK  -  JEFF MINTER",
-      "Save the llamas from the invaders.", {0.42f, 0.16f, 0.52f, 1}, {0.95f, 0.85f, 0.20f, 1});
+      "Save the llamas from the invaders.", {0.76f, 0.75f, 0.68f, 1}, {0.95f, 0.85f, 0.20f, 1});
   k.back().game.play_at = 0x12EEE, k.back().game.play_value = 1, k.back().game.play_word = true;  // states: 1 play,
   k.back().game.play_value2 = 5, k.back().game.play_value3 = 4;  // 5 title / enemies / high scores, 4 game over
   k.back().game.play_more = {3};  // the pause screen (its dots every VBL, captured)
@@ -221,7 +221,7 @@ std::vector<Known> KnownGames() {
   // Photon Storm (Arc / Llamasoft 1990), PHOTON.YAK (Automation-packed TOS program) on a compilation disk with
   // other Llamasoft .YAKs; the Andes Attack engine. State $44846 (1 play, 7 title, 10 paused).
   wip("photonstorm", "PHOTON STORM", "PHOTON.YAK", "PHOTON STORM  -  JEFF MINTER, ARC 1990",
-      "Blast the alien swarms in deep space.", {0.08f, 0.10f, 0.30f, 1}, {0.95f, 0.75f, 0.20f, 1});
+      "Blast the alien swarms in deep space.", {0.20f, 0.28f, 0.43f, 1}, {0.95f, 0.75f, 0.20f, 1});
   k.back().game.play_at = 0x44846, k.back().game.play_value = 1, k.back().game.play_word = true;
   k.back().game.play_more = {12, 7, 11, 8, 10, 3, 5, 4, 6};  // the ARC logo, title, enemy guide, high scores, pause, bonus
   k.back().game.mode = input::Mode::kPhotonStorm;
@@ -250,7 +250,7 @@ std::vector<Known> KnownGames() {
   // data in STUFF\ on a 1.44 MB disk. The Jaguar pad on the enhanced joystick port (llamazap.cpp); music: MODs
   // mixed by its DSP program (our mixer stands in: dsp.cpp).
   wip("llamazap", "LLAMAZAP", "LLAMAZAP.PRG", "LLAMAZAP  -  JEFF MINTER, FALCON030 1993",
-      "Defend the beasts of the galaxy.", {0.10f, 0.10f, 0.12f, 1}, {0.95f, 0.30f, 0.65f, 1});
+      "Defend the beasts of the galaxy.", {0.85f, 0.06f, 0.04f, 1}, {0.95f, 0.30f, 0.65f, 1});
   k.back().game.mode = input::Mode::kLlamazap;
   k.back().game.falcon = true;
   k.back().game.year = 1993;
