@@ -43,7 +43,10 @@ constexpr uint32_t kCheck = 0x1AB9C, kCheckPass = 0x1ABA8;  // cmp.w $5138A,d3 ;
 // own, *$5269A (set by each level type's set-up: $11FE4 Beasties / Air-Sea, $11CE0 Space, $11CF2 Furred, $11D20
 // test-fly, ...: all 10 types of the 25 stages, table $2E666; at first only $11FE4 was known: levels 3-5 stayed
 // at 25, owner 2026-11-20). Checked on every stage type: the same events as the original (some stage intros a few
-// frames shorter: timed by drawn frames), every frame drawn at the 68030's own speed.
+// frames shorter: timed by drawn frames), every frame drawn at the 68030's own speed. Outside play too (2026-11-20,
+// owner: "everything always"): the title, menus, attract screens ($1AC34 $26722 $2676A $260CC), stage intros
+// ($1A9CA), briefings ($25F0E) and the fades ($274EC $275B6) keep their lengths frame for frame at 1 (their logic is
+// in the VBL as well) and show every frame (were every other); all 10 stage types, deaths and game over checked.
 constexpr uint32_t kDivisor = 0x49DDC, kDivisorRead = 0x1403C, kVblRoutine = 0x2F98C, kLevelRoutine = 0x5269A,
                    kNoRoutine = 0x13DA0;
 bool g_50fps = true;
@@ -743,10 +746,12 @@ void Update(st::Machine* m) {
     Put16(m, kEntryCall, 0x4AFC);
     m->AddHook(kEntryCall, OnEntryScreen);
   }
-  // The divisor: 1 in play, the original 2 elsewhere (only this build: the main loop reads it where we expect).
+  // The divisor: 1 on every screen (2026-11-20; before: in play only), the original 2 with the setting off / STOCK
+  // (only this build: the main loop reads it where we expect).
   if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) {
-    Put16(m, kDivisor, g_50fps && !games::Stock() && InLevel(*m) ? 1 : 2);
+    Put16(m, kDivisor, g_50fps && !games::Stock() ? 1 : 2);
   }
+
 }
 
 namespace {

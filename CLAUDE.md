@@ -94,7 +94,10 @@ elease\Llamatron-<ver>-windows.zip (no game
 - 50 fps (2026-11-20): the main loop ($14006..$1404E) sets the countdown $2F9A2 to the divisor $49DDC (2) after
   each drawn frame; the VBL ($1316A) counts it down and shows the screen. All logic is in the VBL (routine
   *$2F98C = the level's own routine *$5269A): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel
-  LLAMAZAP), 2 elsewhere. All 10 stage types checked (2026-11-20): same events as the original (some stage
+  LLAMAZAP); since 2026-11-20 on every screen (owner: "everything always"; 2 only with it off / STOCK): title,
+  menus, attract ($1AC34 $26722 $2676A $260CC), stage intros $1A9CA, briefings $25F0E, fades $274EC / $275B6 keep
+  their lengths frame for frame (VBL logic) and draw every frame; probed on all 10 stage types, deaths, game over.
+  Not reached by the probe: stage completion, high-score entry, the end. All 10 stage types checked (2026-11-20): same events as the original (some stage
   intros a few frames shorter: timed by drawn frames), every frame drawn at the 68030's own speed (no boost needed;
   a death / respawn runs another VBL routine: 2 there). Before, only $11FE4 was known (owner: levels 3+ at 25).
 - The 25 stages (5 levels x 5; table $2E666 of stage descriptors, a starting level = index x 5; briefings in the

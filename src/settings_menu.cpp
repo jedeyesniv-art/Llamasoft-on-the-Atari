@@ -179,7 +179,7 @@ const std::vector<Item>& Items() {
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (15 to 20 frames a second in play), no remaster. Your controls stay. For purists and the brave.", true},
 
       {"llamazap", "50 FRAMES A SECOND", "llamazap_50fps", Kind::kToggle, 1, 0, 1, 1, {},
-       "Draws every frame in play (the original: 25). The game's speed is the same."},
+       "Draws every frame on every screen (the original: 25 a second). The game's speed is the same."},
       {"llamazap", "TWIN STICK (LLAMATRON STAGES)", "llamazap_twin_stick", Kind::kToggle, 1, 0, 1, 1, {},
        "Llamatronic and Son of Llamatron: the right stick aims the shots (off: the pad's A / C turn them round)."},
       {"llamazap", "STEREO", "llamazap_stereo", Kind::kToggle, 1, 0, 1, 1, {},
