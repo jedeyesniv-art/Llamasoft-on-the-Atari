@@ -62,10 +62,15 @@ function Copy-Games([string]$to) {
     $rmctt = Join-Path $repo "Private\Revenge_of_the_Mutant_Camels_demo-playable_1991_Llamasoft_TT_Megamix.st"
     if (-not (Test-Path -LiteralPath $rmctt)) { throw "$rmctt not found" }
     Copy-Item -LiteralPath $rmctt -Destination (Join-Path $to "Revenge of the Mutant Camels (TT Megamix).st")
+    # Llamazap (Falcon030; owner 2026-11-20: in the release - public for years, of no commercial interest): the
+    # 1.44 MB disk from Private\llamazap_[falcon030]_atari_(uk).zip, unpacked to Private\new\llamazap\Llamazap.st.
+    $zap = Join-Path $repo "Private\new\llamazap\Llamazap.st"
+    if (-not (Test-Path -LiteralPath $zap)) { throw "$zap not found (unzip the .ST from Private\llamazap_[falcon030]_atari_(uk).zip there)" }
+    Copy-Item -LiteralPath $zap -Destination (Join-Path $to "Llamazap (Falcon030).st")
     python -P (Join-Path $repo "Tools\make_release_disks.py") $to
     if ($LASTEXITCODE) { throw "make_release_disks.py failed" }
     foreach ($f in "Llamatron ST.msa", "Trip-A-Tron\TRIP1.TOS", "Trip-A-Tron\MANUAL.TXT", "docs\PHOTONSTORM.TXT", "Revenge of the Mutant Camels (1MB STE).stx",
-                   "Revenge of the Mutant Camels (TT Megamix).st",
+                   "Revenge of the Mutant Camels (TT Megamix).st", "Llamazap (Falcon030).st",
                    "Andes Attack.st", "Defender 2.st", "Hardcore.st", "Photon Storm.st") {
         if (-not (Test-Path -LiteralPath (Join-Path $to $f))) { throw "game\$f missing" }
     }

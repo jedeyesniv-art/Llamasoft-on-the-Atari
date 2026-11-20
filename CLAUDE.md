@@ -36,7 +36,8 @@ elease\Llamatron-<ver>-windows.zip (no game
   Private\llamazap_[falcon030]_atari_(uk).zip: a 1.44 MB PC-formatted disk, LLAMAZAP.PRG (Pack-Ice) + STUFF\: 7 MODs,
   LLAMAFX.BIN, YAKKY.DA high scores; no BAA2.COW - the game opens it, carries on without). Also a Jan 1993 beta,
   Private\llamazap-falcon.zip (silent, no protection). Registry id llamazap, Game::falcon, input::Mode::kLlamazap.
-  Release status undecided (commercial: ask the owner).
+  In the release (owner 2026-11-20: "publicly available for many years and of no interest commercially"):
+  package_portable.ps1 copies it to game\Llamazap (Falcon030).st.
 - st::Machine::SetFalcon (before Load; src/machine_falcon.inc): 4 MB (ram_size_ replaces kRamSize in machine.cpp;
   phystop = 4 MB: it caches its data), Musashi as a 68030 (m68kconf: 010..030 on; cpu::Init(m, true)) at 2x the ST
   clock (cpu_mul_), exception frames 8 bytes (frame_bytes_: our TOS trap code). VIDEL via Vsetmode ($063 = 8 planes,
