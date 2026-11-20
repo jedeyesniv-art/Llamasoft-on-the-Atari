@@ -85,6 +85,12 @@ elease\Llamatron-<ver>-windows.zip (no game
   the game's), Llamazap in NormalGainDb (+2.0 dB: -25.0 LUFS raw -> -23.0, peaks -7.3 dB). Tests (env):
   FALCON_DSP_DUMP=<prefix> writes each DSP load, FALCON_DSP_VOICES logs each sample started (length, rate,
   volumes), FALCON_DSP_MUTE=fx|music.
+  Stereo (2026-11-20; setting llamazap_stereo, panel STEREO, default on): Machine::AudioSide() = (L - R) / 2 per
+  sample of Audio() (the middle, unchanged: every mono measurement / WAV stays as it was); only the DSP voices
+  fill it (each voice's left / right volume; the effects are sent centred), filtered as the middle. main.cpp opens a
+  stereo stream (left = middle + side, right = middle - side; the ST games: side empty = both the same). Measured:
+  music alone side / middle 0.36 (L-R correlation 0.75), the whole mix 0.09 (the centred effects lead); Llamatron
+  L == R. Tests: env WAV_STEREO also writes <wav>.stereo.wav.
 - 50 fps (2026-11-20): the main loop ($14006..$1404E) sets the countdown $2F9A2 to the divisor $49DDC (2) after
   each drawn frame; the VBL ($1316A) counts it down and shows the screen. All logic is in the VBL (routine
   *$2F98C = the level's own routine *$5269A): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel
@@ -158,7 +164,7 @@ elease\Llamatron-<ver>-windows.zip (no game
   (worst ~5.5). Off in verify mode. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
-- Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher
+- Next (ideas): owner's verdict on the right-stick keypad; launcher
   preview; remap list; rumble; a label on sheet 3's empty row (stand-in for now).
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)

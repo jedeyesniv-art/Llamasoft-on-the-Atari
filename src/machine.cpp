@@ -377,7 +377,9 @@ void Machine::Sync() {
   if (sandbox) audio_synced_ = now;
   if (now <= audio_synced_) return;
   size_t from = audio_.size();
+  if (audio_side_.size() > from) audio_side_.resize(from);  // (the caller cleared Audio() alone)
   ym_.Run(double(now - audio_synced_) * (2000000.0 / kCpuHz), &audio_);
+  if (dsp_running_) audio_side_.resize(audio_.size(), 0.0f);  // (only the Falcon's voices pan)
   if (dma_on_) MixDma(from);
   if (dsp_running_) MixDsp(from);
   audio_synced_ = now;

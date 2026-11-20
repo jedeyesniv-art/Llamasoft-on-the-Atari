@@ -61,6 +61,7 @@ int g_stage = 0;
 constexpr uint32_t kFireDir = 0x525F2, kFireFollow = 0x1C460, kFireFollowDo = 0x1C46E, kFireFollowSkip = 0x1C480;
 constexpr uint32_t kPadB = 0x4E8B9;
 bool g_twin_stick = true;
+bool g_stereo = true;  // llamazap_stereo: the voices panned as the game sends them
 float g_fx_volume = 1;  // llamazap_fx_volume: the effects voice (the game sends it ~10 dB over the music)
 int g_aim = -1;  // the right stick's direction in the game's numbering, -1 = not pushed
 
@@ -649,6 +650,7 @@ void LoadSettings() {
   g_stage = std::clamp(int(settings::Get("llamazap_stage", 0)), 0, 25);
   g_twin_stick = settings::Get("llamazap_twin_stick", 1) != 0;
   g_fx_volume = float(std::clamp(settings::Get("llamazap_fx_volume", 1.0), 0.0, 1.0));
+  g_stereo = settings::Get("llamazap_stereo", 1) != 0;
 }
 
 // The pad as the Jaguar pad: left stick / d-pad the directions, A = A (fire), B = B (jump / lock the fire angle),
@@ -656,6 +658,7 @@ void LoadSettings() {
 void Update(st::Machine* m) {
   const pad::State& p = pad::Now();
   m->SetDspFxGain(g_fx_volume * g_fx_volume);  // (squared, as the master volume: 0.5 = -12 dB)
+  m->SetDspStereo(g_stereo);
   SurveyFrame(m);
   uint32_t bits = 0;
   const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0;

@@ -287,14 +287,14 @@ void SaveShot(const st::Machine& m, const std::string& path) {
   SDL_DestroySurface(s);
 }
 
-void SaveWav(const std::string& path, const std::vector<float>& samples, int rate) {
+void SaveWav(const std::string& path, const std::vector<float>& samples, int rate, int channels = 1) {
   FILE* f = std::fopen(path.c_str(), "wb");
   if (!f) return;
   auto u32 = [&](uint32_t v) { std::fwrite(&v, 4, 1, f); };
   auto u16 = [&](uint16_t v) { std::fwrite(&v, 2, 1, f); };
   uint32_t bytes = uint32_t(samples.size() * 2);
   std::fwrite("RIFF", 1, 4, f), u32(36 + bytes), std::fwrite("WAVEfmt ", 1, 8, f);
-  u32(16), u16(1), u16(1), u32(uint32_t(rate)), u32(uint32_t(rate * 2)), u16(2), u16(16);
+  u32(16), u16(1), u16(uint16_t(channels)), u32(uint32_t(rate)), u32(uint32_t(rate * 2 * channels)), u16(uint16_t(2 * channels)), u16(16);
   std::fwrite("data", 1, 4, f), u32(bytes);
   for (float x : samples) u16(uint16_t(int16_t(std::clamp(x, -1.0f, 1.0f) * 32767)));
   std::fclose(f);
@@ -387,6 +387,7 @@ struct Context {
   int view_h = st::kScreenH;
   double mode_hz = 50;  // the game rate the fullscreen display mode was picked for
   std::vector<float> wav;
+  std::vector<float> wav_stereo;  // (tests: WAV_STEREO)
   std::vector<games::Game> games;  // what the launcher offers
   const games::Game* game = nullptr;  // the launcher's game being run (null: --program of an unknown one)
   std::string type_ahead;
@@ -898,7 +899,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       playing_second &= playing;
       if ((stgames::HostPaused() && (mode == input::Mode::kDefender2)) ||
           (mode == input::Mode::kLlamazap && llamazap::MenuOpen())) {
-        machine.Audio().clear();  // paused: the picture stays, no sound, no frames
+        machine.Audio().clear(), machine.AudioSide().clear();  // paused: the picture stays, no sound, no frames
       } else {
         if (frame == opt.survey_from && !opt.survey_file.empty()) {
           g_survey.f = std::fopen(opt.survey_file.c_str(), "wb");
@@ -1003,6 +1004,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     }
 
     std::vector<float>& samples = machine.Audio();
+    std::vector<float>& side = machine.AudioSide();
     if (skipping) samples.clear();
     // Volume: the game's normalising gain (all games equally loud) times the master volume (settings; read
     // live, squared so the slider feels even: 0.5 = -12 dB). Applied before the WAV dump (tests measure it).
@@ -1010,20 +1012,37 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       double v = std::clamp(settings::Get("volume", 1.0), 0.0, 1.0);
       double db = c.game && settings::Get("volume_normalise", 1) != 0 ? games::NormalGainDb(*c.game) : 0;
       float gain = float(v * v * std::pow(10.0, db / 20));
-      if (gain != 1.0f)
+      if (gain != 1.0f) {
         for (float& x : samples) x = std::clamp(x * gain, -1.0f, 1.0f);
+        for (float& x : side) x *= gain;
+      }
     }
-    if (!opt.wav.empty()) c.wav.insert(c.wav.end(), samples.begin(), samples.end());
+    if (!opt.wav.empty()) {
+      c.wav.insert(c.wav.end(), samples.begin(), samples.end());
+      if (SDL_getenv("WAV_STEREO"))  // (tests: also <wav>.stereo.wav, left / right as played)
+        for (size_t i = 0; i < samples.size(); ++i) {
+          const float sd = i < side.size() ? side[i] : 0.0f;
+          c.wav_stereo.push_back(samples[i] + sd), c.wav_stereo.push_back(samples[i] - sd);
+        }
+    }
     if (audio && !samples.empty()) {
       // Keep about 50 ms queued: play up to 0.5% faster or slower (the vsync-locked game runs at the display's
       // rate, not exactly the ST's), and drop audio if we got far ahead (after a stall).
-      int queued = SDL_GetAudioStreamQueued(audio) / int(sizeof(float));
+      int queued = SDL_GetAudioStreamQueued(audio) / int(2 * sizeof(float));  // (stereo frames)
       if (queued > kRate / 5) SDL_ClearAudioStream(audio), queued = 0;
       const double target = kRate * 0.05;
       SDL_SetAudioStreamFrequencyRatio(audio, float(std::clamp(1.0 + (queued - target) / target * 0.005, 0.995, 1.005)));
-      SDL_PutAudioStreamData(audio, samples.data(), int(samples.size() * sizeof(float)));
+      // Left = middle + side, right = middle - side (the side: Machine::AudioSide, 0 where it has none).
+      static std::vector<float> lr;
+      lr.resize(samples.size() * 2);
+      for (size_t i = 0; i < samples.size(); ++i) {
+        const float sd = i < side.size() ? side[i] : 0.0f;
+        lr[2 * i] = std::clamp(samples[i] + sd, -1.0f, 1.0f), lr[2 * i + 1] = std::clamp(samples[i] - sd, -1.0f, 1.0f);
+      }
+      SDL_PutAudioStreamData(audio, lr.data(), int(lr.size() * sizeof(float)));
     }
     samples.clear();
+    side.clear();
 
     if (renderer) {
       // Medium resolution (640 wide) has its own texture, drawn into the same picture.
@@ -1462,7 +1481,7 @@ int main(int argc, char** argv) {
     c.texture_wide = SDL_CreateTexture(c.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                                        st::kMaxFrameW, st::kScreenH);
     SDL_SetTextureScaleMode(c.texture_wide, SDL_SCALEMODE_PIXELART);
-    SDL_AudioSpec spec{SDL_AUDIO_F32, 1, kRate};
+    SDL_AudioSpec spec{SDL_AUDIO_F32, 2, kRate};  // stereo (the Falcon's voices pan; the rest centred)
     c.audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (c.audio) SDL_ResumeAudioStreamDevice(c.audio);
     else LOG("no audio: %s", SDL_GetError());
@@ -1532,6 +1551,7 @@ int main(int argc, char** argv) {
   }
 
   if (!opt.wav.empty()) SaveWav(opt.wav, c.wav, kRate);
+  if (!c.wav_stereo.empty()) SaveWav(opt.wav + ".stereo.wav", c.wav_stereo, kRate, 2);
   input::Shutdown();
   if (c.audio) SDL_DestroyAudioStream(c.audio);
   preview::Shutdown();

@@ -182,6 +182,8 @@ const std::vector<Item>& Items() {
        "Draws every frame in play (the original: 25). The game's speed is the same."},
       {"llamazap", "TWIN STICK (LLAMATRON STAGES)", "llamazap_twin_stick", Kind::kToggle, 1, 0, 1, 1, {},
        "Llamatronic and Son of Llamatron: the right stick aims the shots (off: the pad's A / C turn them round)."},
+      {"llamazap", "STEREO", "llamazap_stereo", Kind::kToggle, 1, 0, 1, 1, {},
+       "The music's voices left and right as the game pans them (the Falcon's own stereo). Off: mono."},
       {"llamazap", "EFFECTS VOLUME", "llamazap_fx_volume", Kind::kSlider, 1, 0, 1, 0.05, {},
        "The sound effects against the music. 1 = as the game plays them (about 10 dB over the music; 4-bit, recorded hot)."},
       {"llamazap", "START AT STAGE", "llamazap_stage", Kind::kChoice, 0, 0, 25, 1,

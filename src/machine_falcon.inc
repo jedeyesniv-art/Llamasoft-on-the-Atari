@@ -329,11 +329,14 @@ void Machine::DspPacket() {
 void Machine::MixDsp(size_t from) {
   if (from >= audio_.size()) return;
   dsp_mix_.assign(audio_.size() - from, 0.0f);
+  dsp_mix_side_.assign(audio_.size() - from, 0.0f);
+  if (audio_side_.size() != audio_.size()) audio_side_.resize(audio_.size(), 0.0f);
   static const char* mute = SDL_getenv("FALCON_DSP_MUTE");  // (tests: "fx" or "music")
   for (DspVoice& v : dsp_voice_) {
     if (!v.on || v.step <= 0 || (v.left == 0 && v.right == 0)) continue;
     if (mute && std::string(mute) == (v.fx ? "fx" : "music")) continue;
     const float gain = (v.left + v.right) * 0.5f * 0.22f * (v.fx ? dsp_fx_gain_ : 1.0f);
+    const float side = dsp_stereo_ ? (v.left - v.right) * 0.5f * 0.22f * (v.fx ? dsp_fx_gain_ : 1.0f) : 0.0f;
     for (size_t i = 0; i < dsp_mix_.size(); ++i) {
       if (v.pos >= v.end) {
         if (v.next_len < 1) break;
@@ -342,7 +345,8 @@ void Machine::MixDsp(size_t from) {
       const uint32_t k = uint32_t(v.pos);
       const float f = float(v.pos - double(k)), a = float(DspByte(v.fx, k));
       const float b = double(k + 1) < v.end ? float(DspByte(v.fx, k + 1)) : a;
-      dsp_mix_[i] += (a + (b - a) * f) / 128.0f * gain;
+      const float sample = (a + (b - a) * f) / 128.0f;
+      dsp_mix_[i] += sample * gain, dsp_mix_side_[i] += sample * side;
       v.pos += v.step;
     }
   }
@@ -350,15 +354,15 @@ void Machine::MixDsp(size_t from) {
   const double w0 = 2 * 3.14159265358979 * 11000.0 / double(sample_rate_), al = std::sin(w0) / (2 * 0.7071);
   const double cs = std::cos(w0), a0 = 1 + al;
   const double b0 = (1 - cs) / 2 / a0, b1 = (1 - cs) / a0, b2 = b0, a1 = -2 * cs / a0, a2 = (1 - al) / a0;
-  double& x1 = dsp_lp_[0];
-  double& x2 = dsp_lp_[1];
-  double& y1 = dsp_lp_[2];
-  double& y2 = dsp_lp_[3];
-  for (size_t i = 0; i < dsp_mix_.size(); ++i) {
-    const double x = dsp_mix_[i], y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-    x2 = x1, x1 = x, y2 = y1, y1 = y;
-    audio_[from + i] += float(y);
-  }
+  auto filter = [&](const std::vector<float>& in, double* st, std::vector<float>* out) {
+    for (size_t i = 0; i < in.size(); ++i) {
+      const double x = in[i], y = b0 * x + b1 * st[0] + b2 * st[1] - a1 * st[2] - a2 * st[3];
+      st[1] = st[0], st[0] = x, st[3] = st[2], st[2] = y;
+      (*out)[from + i] += float(y);
+    }
+  };
+  filter(dsp_mix_, dsp_lp_, &audio_);
+  filter(dsp_mix_side_, dsp_lp_side_, &audio_side_);
 }
 
 // The Falcon's XBIOS: video, the DSP and the sound system. false = not one of them (the ST's then).

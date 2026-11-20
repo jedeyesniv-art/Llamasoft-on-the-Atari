@@ -113,6 +113,10 @@ class Machine {
   // Audio produced so far (mono float at the rate given); the caller drains it.
   void SetSampleRate(int rate) { ym_.SetSampleRate(rate), sample_rate_ = rate; }
   std::vector<float>& Audio() { return audio_; }
+  // Stereo: per sample of Audio() (the middle, (L + R) / 2), the side (L - R) / 2 - as long as Audio() after a
+  // RunFrame (empty or shorter: 0, centred; only the Falcon's DSP voices pan). Cleared with it by the caller.
+  std::vector<float>& AudioSide() { return audio_side_; }
+  void SetDspStereo(bool on) { dsp_stereo_ = on; }
 
   // Input: joystick states (port 0 = the mouse port, 1 = the joystick port) and ST key scancodes.
   void SetJoystick(int port, uint8_t state);
@@ -268,6 +272,8 @@ class Machine {
   std::vector<uint32_t> dsp_mem_ = std::vector<uint32_t>(0x8000);
   std::vector<float> dsp_mix_;            // this slice's voices, before the output filter
   double dsp_lp_[4] = {};                 // the output filter's state (x1 x2 y1 y2)
+  double dsp_lp_side_[4] = {};            // and the side's
+  std::vector<float> dsp_mix_side_;
   float dsp_fx_gain_ = 1;
   uint32_t dsp_load_ = 0x300;
   int dsp_params_ = 0;                  // one-word blocks after Dsp_ExecProg: its parameters
@@ -363,6 +369,8 @@ class Machine {
   Ym2149 ym_;
   int ym_sel_ = 0;
   std::vector<float> audio_;
+  std::vector<float> audio_side_;
+  bool dsp_stereo_ = true;
 
   // TOS state.
   std::map<std::string, disk::Bytes> files_;  // upper-case names
