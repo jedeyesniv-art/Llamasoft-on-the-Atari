@@ -25,6 +25,8 @@ constexpr double kCpuHz = 8021247.0;     // PAL ST
 constexpr int kScreenW = 320, kScreenH = 200;
 constexpr int kMaxFrameW = 640;  // medium resolution: 640 x 200, 4 colours
 constexpr uint32_t kFalconRam = 0x400000;  // the Falcon: 4 MB
+// Tests: called for every blitter job (destination, source, words a line, lines, the CPU's pc), when set.
+extern void (*g_blit_watch)(uint32_t dst, uint32_t src, int xcount, int ycount, uint32_t pc);
 constexpr int kFrameCapacity = kMaxFrameW * kScreenH;  // the frame buffer: also the Falcon's 384 x 240 overscan
 
 // The Jaguar pad on the Falcon's enhanced joystick port A (SetJagpad): one bit per button.

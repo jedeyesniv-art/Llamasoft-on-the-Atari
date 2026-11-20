@@ -196,6 +196,7 @@ void Machine::Blit() {
   int line = ctrl & 15;
   const bool smudge = ctrl & 0x20, fxsr = sk & 0x80, nfsr = sk & 0x40;
   const int skew = sk & 15;
+  if (g_blit_watch) g_blit_watch(dst, src, xcount, ycount, cpu::Get(cpu::PPC));
   if (trace_tos) {
     static int logged = 0;
     if (logged++ < 60)

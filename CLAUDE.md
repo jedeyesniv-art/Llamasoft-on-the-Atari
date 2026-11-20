@@ -98,7 +98,22 @@ elease\Llamatron-<ver>-windows.zip (no game
   A / C step it (Jaguar bits read 0 = pressed), then $1C460: unless B is held (the lock) it follows the way the ship
   moves (table $1C5FE). Hook at $1C460: right stick pushed (0.5) = its 8-way angle written, the follow skipped; let
   go = the game's own. Verified all 8 directions, aim held while moving (5 up / right, 21 right / up). The right
-  stick's keypad is off on those stages (no keypad there). Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  stick's keypad is off on those stages (no keypad there).
+- Remaster survey (2026-11-20, owner asked about unlocking the frame rate like the ST ports; not started beyond this):
+  env LLAMAZAP_SURVEY=<from>:<to>:<file> (llamazap.cpp; frames counted by Update) writes, per 16-byte code block,
+  CPU writes and blitter jobs (st::g_blit_watch, new) into the three 640 x 300 8-plane buffers *$5291C.. = $5C570
+  (buf0), $8B370, $BA170 (192000 bytes each; 640 bytes a line, 16 bytes = 16 pixels x 8 planes), and logs 12 sample
+  jobs per routine ("survey blit"). Found (stages 1, 11, 15, 21 - the same routines in all): buf0 = the clean
+  background, never written in play; the shown buffers alternate; only 3-7 % of the shown buffer is written a frame.
+  Writers: $13E94 restore (rectangles copied from buf0 at the same offset: erases last frame's sprites); sprites by
+  blitter one plane at a time, mask pass then image pass: $14992 / $149FC, $14B02 (bigger), $14EC6 / $14F2C,
+  $14E8E (lines 260+: the HUD area); CPU: $25120 a 2 x 2 dot plotter (bullets / particles: and / or into 8 planes,
+  addresses kept) and $13E48 its erase from buf0. Scrolling is the video hardware: the VBL ($1316A) sets the base
+  from $49B9C (mod 640: a 16-pixel step in the address + $FF8265 fine scroll, $FF820F line offset); timer B
+  handlers: $132DC = one split at line 200 (the HUD from $4E004), $13288 = a list of splits (*$4E00C: address,
+  hscroll, offset each; multi-band, parallax). Beasties: the single HUD split. Plan if pursued: background = buf0
+  through the same (interpolated) scroll; sprites / dots captured at their routines' callers; a Falcon (8-plane,
+  256-colour, 384 x 240) path in remaster.cpp; pilot = $11FE4 stages. Open: the 640-wide wrap with a 384 display. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

@@ -12,6 +12,8 @@
 #include "log.h"
 
 namespace st {
+
+void (*g_blit_watch)(uint32_t dst, uint32_t src, int xcount, int ycount, uint32_t pc) = nullptr;
 namespace {
 
 // TOS stand-ins in the ROM area (offsets from kRomBase).

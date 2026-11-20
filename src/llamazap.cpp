@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -277,10 +279,78 @@ bool MenuFrame(st::Machine* m, const pad::State& p, bool ship_select) {
   return false;
 }
 
+// Survey (tests; env LLAMAZAP_SURVEY=<from>:<to>:<file>, frames counted by Update): who draws into the three
+// 640 x 300 screen buffers ($5C570, $8B370, $BA170: *$5291C..; 192000 bytes each) - CPU writes and blitter jobs,
+// by the code's 16-byte block - and how much of the shown buffer is written a frame.
+constexpr uint32_t kBuffers = 0x5291C, kBufferBytes = 192000;
+struct SurveyRow {
+  uint64_t cpu[3] = {}, blit_jobs[3] = {}, blit_words[3] = {};
+};
+struct Survey {
+  int from = -1, to = -1, frame = 0, frames = 0;
+  std::string file;
+  uint32_t base[3] = {};
+  std::map<uint32_t, SurveyRow> rows;
+  std::map<uint32_t, int> routines;  // VBL routine -> frames
+} g_survey;
+int BufferOf(uint32_t a) {
+  for (int i = 0; i < 3; ++i)
+    if (g_survey.base[i] && a >= g_survey.base[i] && a < g_survey.base[i] + kBufferBytes) return i;
+  return -1;
+}
+void SurveyWrite(uint32_t a, uint32_t pc) {
+  int b = BufferOf(a);
+  if (b >= 0) ++g_survey.rows[pc & ~15u].cpu[b];
+}
+std::map<uint32_t, int> g_survey_logged;
+void SurveyBlit(uint32_t dst, uint32_t src, int xcount, int ycount, uint32_t pc) {
+  int b = BufferOf(dst);
+  if (b < 0) return;
+  if (g_survey_logged[pc & ~15u]++ < 12) {
+    int sb = BufferOf(src);
+    uint32_t off = dst - g_survey.base[b];
+    LOG("survey blit pc %06X: %d x %d words, dst buf%d +%u (line %u, byte %u), src %06X%s%d", pc, xcount, ycount, b, off,
+        off / 640, off % 640, src, sb >= 0 ? " = buf" : "", sb);
+  }
+  SurveyRow& r = g_survey.rows[pc & ~15u];
+  ++r.blit_jobs[b], r.blit_words[b] += uint64_t(xcount) * uint64_t(ycount);
+}
+void SurveyFrame(st::Machine* m) {
+  Survey& s = g_survey;
+  if (s.from < 0 || m->sandbox) return;
+  ++s.frame;
+  if (s.frame == s.from) {
+    for (int i = 0; i < 3; ++i) s.base[i] = Get32(*m, kBuffers + 4 * uint32_t(i));
+    cpu::g_write_watch = SurveyWrite, st::g_blit_watch = SurveyBlit;
+  }
+  if (s.frame >= s.from && s.frame < s.to) ++s.frames, ++s.routines[Get32(*m, kVblRoutine)];
+  if (s.frame != s.to) return;
+  cpu::g_write_watch = nullptr, st::g_blit_watch = nullptr;
+  FILE* f = std::fopen(s.file.c_str(), "w");
+  if (!f) return;
+  std::fprintf(f, "frames %d, buffers %06X %06X %06X\nVBL routines:", s.frames, s.base[0], s.base[1], s.base[2]);
+  for (auto& [r, n] : s.routines) std::fprintf(f, " %06X x%d", r, n);
+  std::fprintf(f, "\n%-8s %12s %12s %12s | %8s %10s | %8s %10s | %8s %10s  (per frame)\n", "pc", "cpu buf0", "cpu buf1",
+               "cpu buf2", "jobs0", "words0", "jobs1", "words1", "jobs2", "words2");
+  const double n = std::max(1, s.frames);
+  for (auto& [pc, r] : s.rows)
+    std::fprintf(f, "%06X %12.1f %12.1f %12.1f | %8.1f %10.1f | %8.1f %10.1f | %8.1f %10.1f\n", pc, r.cpu[0] / n,
+                 r.cpu[1] / n, r.cpu[2] / n, r.blit_jobs[0] / n, r.blit_words[0] / n, r.blit_jobs[1] / n,
+                 r.blit_words[1] / n, r.blit_jobs[2] / n, r.blit_words[2] / n);
+  std::fclose(f);
+  LOG("llamazap: survey written to %s", s.file.c_str());
+}
+
 }  // namespace
 
 void Reset() {
   LoadSettings();
+  if (const char* e = SDL_getenv("LLAMAZAP_SURVEY")) {
+    std::string v = e;
+    size_t c1 = v.find(':'), c2 = v.find(':', c1 + 1);
+    if (c1 != std::string::npos && c2 != std::string::npos)
+      g_survey.from = std::atoi(v.c_str()), g_survey.to = std::atoi(v.c_str() + c1 + 1), g_survey.file = v.substr(c2 + 1);
+  }
   g_menu = Menu{};
   g_lb_was = g_stick_blocked = false;
   g_inject_frames = 0;
@@ -298,6 +368,7 @@ void LoadSettings() {
 // X = C (fire), RT = A too, Y = Option, Start = Pause, the right stick and R3 the keypad (R3 = 1).
 void Update(st::Machine* m) {
   const pad::State& p = pad::Now();
+  SurveyFrame(m);
   uint32_t bits = 0;
   const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0;
   if (MenuFrame(m, p, ship_select)) {
