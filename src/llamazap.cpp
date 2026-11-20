@@ -136,23 +136,13 @@ void OnManualCheck(st::Machine& m) {
   cpu::Set(cpu::PC, kCheckPass);
 }
 
-// The keypad on the right stick (owner 2026-11-20), flicked: up-left 2, up 3, up-right 4, left 5, right 6,
-// down-left 7, down 8, down-right 9; R3 = 1 (key 1 = power-up 0, a new ship: kept off the stick so it isn't
-// bought by accident). In play the keys buy power-ups (1-9: power-ups 0-8, table $11CC8). Buying 1 shows SELECT
-// SHIP: $2F594 >= 0 counts down ~300 frames, and a key's column on the Jaguar keypad picks the ship ($13046:
-// 1 4 7 * Phoenix, 2 5 8 0 Falcon, 3 6 9 # Condor; first all keys must be up: $49DB8). Then the d-pad picks
-// instead (left 4 Phoenix, up 5 Falcon, right 6 Condor; those three don't move the ship then), the right stick
-// and R3 are off.
+// The keypad (owner 2026-11-20, second go): R3 = key 1 (power-up 0: a new ship); every other power-up from the
+// LB menu (the right stick's keypad flicks are gone: the menu does it better). In play the keys buy power-ups (1-9:
+// power-ups 0-8, table $11CC8). Buying 1 shows SELECT SHIP: $2F594 >= 0 counts down ~300 frames, and a key's column
+// on the Jaguar keypad picks the ship ($13046: 1 4 7 * Phoenix, 2 5 8 0 Falcon, 3 6 9 # Condor; first all keys must
+// be up: $49DB8). While it shows, X / A / B pick (keys 4 / 5 / 6: Phoenix, Falcon, Condor - left, middle, right
+// as the buttons sit) and do nothing else; the d-pad moves as always.
 constexpr uint32_t kShipSelect = 0x2F594;
-uint32_t KeypadFromStick(const pad::State& p) {
-  float x = p.rx, y = p.ry;
-  if (x * x + y * y < 0.6f * 0.6f) return 0;
-  int col = x < -0.38f ? 0 : x > 0.38f ? 2 : 1, row = y < -0.38f ? 0 : y > 0.38f ? 2 : 1;
-  static const int kKey[3][3] = {{2, 3, 4}, {5, 0, 6}, {7, 8, 9}};
-  int key = kKey[row][col];
-  return key ? st::kJagKey0 << key : 0;
-}
-
 // Keyboard: cursor keys, Z / Space = A, X = B, C = C, O = Option, P = Pause, digits = the keypad (keypad * and /
 // = * and #). Every key also goes to the Falcon (name entry types there).
 uint32_t FromKeyboard() {
@@ -231,7 +221,7 @@ struct Menu {
 };
 Menu g_menu;
 bool g_lb_was = false;
-bool g_stick_blocked = false;  // after the menu: the right stick / R3 are no keys until let go
+bool g_stick_blocked = false;  // after the menu: R3 is no key until let go
 int g_inject_key = 0, g_inject_frames = 0;
 
 std::string Upper(std::string t) {
@@ -654,36 +644,39 @@ void LoadSettings() {
 }
 
 // The pad as the Jaguar pad: left stick / d-pad the directions, A = A (fire), B = B (jump / lock the fire angle),
-// X = C (fire), RT = A too, Y = Option, Start = Pause, the right stick and R3 the keypad (R3 = 1).
+// X = C (fire), RT = A too, Y = Option, Start = Pause, R3 = keypad 1 (a new ship), LB the power-up menu; on
+// SELECT SHIP X / A / B the ships; on the Llamatron stages the right stick aims.
 void Update(st::Machine* m) {
   const pad::State& p = pad::Now();
   m->SetDspFxGain(g_fx_volume * g_fx_volume);  // (squared, as the master volume: 0.5 = -12 dB)
   m->SetDspStereo(g_stereo);
   SurveyFrame(m);
   uint32_t bits = 0;
-  const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0;
+  // (Only in play: $2F594 also holds 300 through the title and menus.)
+  const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0 && KeypadLevel(*m);
   if (MenuFrame(m, p, ship_select)) {
     m->SetJagpad(0);
     return;
   }
-  pad::State q = p;  // ship select: the d-pad's left / up / right are the ships, not moves
+  // SELECT SHIP: X / A / B are the ships (left, middle, right), nothing else then.
+  const bool west = p.Held(SDL_GAMEPAD_BUTTON_WEST), south = p.Held(SDL_GAMEPAD_BUTTON_SOUTH),
+             east = p.Held(SDL_GAMEPAD_BUTTON_EAST);
   if (ship_select) {
-    for (auto [b, key] : {std::pair{SDL_GAMEPAD_BUTTON_DPAD_LEFT, 4}, std::pair{SDL_GAMEPAD_BUTTON_DPAD_UP, 5},
-                          std::pair{SDL_GAMEPAD_BUTTON_DPAD_RIGHT, 6}})
-      if (p.Held(b)) bits |= st::kJagKey0 << key, q.buttons &= ~(1u << b);
+    if (west) bits |= st::kJagKey0 << 4;
+    if (south) bits |= st::kJagKey0 << 5;
+    if (east) bits |= st::kJagKey0 << 6;
   }
-  uint8_t joy = pad::JoyBits(q);  // left stick or d-pad
+  uint8_t joy = pad::JoyBits(p);  // left stick or d-pad
   if (joy & st::kJoyUp) bits |= st::kJagUp;
   if (joy & st::kJoyDown) bits |= st::kJagDown;
   if (joy & st::kJoyLeft) bits |= st::kJagLeft;
   if (joy & st::kJoyRight) bits |= st::kJagRight;
-  if (p.Held(SDL_GAMEPAD_BUTTON_SOUTH) || p.rt > 0.5f) bits |= st::kJagA;
-  if (p.Held(SDL_GAMEPAD_BUTTON_EAST)) bits |= st::kJagB;
-  if (p.Held(SDL_GAMEPAD_BUTTON_WEST)) bits |= st::kJagC;
+  if ((south && !ship_select) || p.rt > 0.5f) bits |= st::kJagA;
+  if (east && !ship_select) bits |= st::kJagB;
+  if (west && !ship_select) bits |= st::kJagC;
   if (p.Held(SDL_GAMEPAD_BUTTON_NORTH)) bits |= st::kJagOption;
   if (p.Held(SDL_GAMEPAD_BUTTON_START)) bits |= st::kJagPause;
-  if (g_stick_blocked && p.rx * p.rx + p.ry * p.ry < 0.3f * 0.3f && !p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK))
-    g_stick_blocked = false;
+  if (g_stick_blocked && !p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) g_stick_blocked = false;  // (R3 after the menu)
   const bool twin = g_twin_stick && LlamatronStage(*m);
   g_aim = -1;
   if (twin && p.rx * p.rx + p.ry * p.ry >= 0.5f * 0.5f) {
@@ -691,10 +684,7 @@ void Update(st::Machine* m) {
     float a = std::atan2(p.rx, -p.ry);
     g_aim = (int(std::lround(a / (3.14159265f / 4))) + 1) & 7;
   }
-  if (!ship_select && !g_stick_blocked && !twin) {
-    if (p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) bits |= st::kJagKey0 << 1;
-    bits |= KeypadFromStick(p);
-  }
+  if (!ship_select && !g_stick_blocked && p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) bits |= st::kJagKey0 << 1;
   bits |= FromKeyboard();
   if (g_inject_frames > 0) {  // the menu's pick: alone on the keypad
     for (int i = 0; i < 10; ++i) bits &= ~(st::kJagKey0 << i);

@@ -51,9 +51,9 @@ elease\Llamatron-<ver>-windows.zip (no game
   bit 0 Pause (row 0) / bit 1 A B C Option (rows 0-3), $FF9202 bits 0-3 = U D L R / * 7 4 1 / 0 8 5 2 / # 9 6 3
   (from the game's own reader $119A0; C also counts as A). Keypad in play: 1-9 buy power-ups 0-8 (table $11CC8,
   tokens $4B544); a key's column picks the ship ($13028: Phoenix / Falcon / Condor). llamazap.cpp: A / RT = A, X = C,
-  B = B (jump / lock the fire angle), Y Option, Start Pause, right stick flicked = keypad 2-9 (up-left 2, up 3, up-right 4, left 5, right 6, down-left 7, down 8,
-  down-right 9; owner 2026-11-20), R3 = 1 (a new ship: off the stick); on SELECT SHIP ($2F594 >= 0, ~300
-  frames after 1) the d-pad picks (left 4 Phoenix, up 5 Falcon, right 6 Condor: not moves then), right stick / R3 off
+  B = B (jump / lock the fire angle), Y Option, Start Pause, R3 = keypad 1 (a new ship); the right stick sends no keys in play (owner 2026-11-20, second go: the LB
+  menu buys the rest); on SELECT SHIP ($2F594 >= 0 on a keypad stage - it also holds 300 through the title and
+  menus: not then) X / A / B = keys 4 / 5 / 6 (Phoenix / Falcon / Condor) and nothing else; the d-pad always moves
 - Power-up menu (2026-11-20, owner; text first, icons maybe later): LB held in play stops the game (main runs no
   frames: llamazap::MenuOpen) and overlays the 9 keys in the stick's layout (R3 = 1 in the middle): names and
   descriptions from the game's own texts (*($2C1F2 + 4 x type) + 8; type = byte 1 of the ship's slot *$49BA8 +
