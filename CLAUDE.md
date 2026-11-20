@@ -164,8 +164,13 @@ elease\Llamatron-<ver>-windows.zip (no game
   (worst ~5.5). Off in verify mode. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
+- Rumble (2026-11-20; rumble.cpp, setting rumble as the others): lives $527F2 (the HUD's hearts, 5 at the start,
+  1 -> 0 = game over) = the heavy pulse; kills = the score digits (a word each, $4B5B0..$4B5BF) going up in play;
+  tokens $4B544 + 1 = a blip (pickup), fewer = a firmer pulse (a power-up bought). Verified scripted (log "rumble:";
+  pickup / purchase by --poke=N:@4B544:v). Not yet felt by the owner on a real pad. --dump / --dump-every write
+  the whole RAM now (4 MB on the Falcon).
 - Next (ideas): owner's verdict on the right-stick keypad; launcher
-  preview; remap list; rumble; a label on sheet 3's empty row (stand-in for now).
+  preview; remap list; a label on sheet 3's empty row (stand-in for now).
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)
 - Porting the next game: REMASTER.md (recipe, verification, pitfalls, per-game notes). Owner: run-ahead on

@@ -869,11 +869,11 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       }
       if (opt.dump_every > 0 && frame % opt.dump_every == 0) {
         std::string path = opt.dump_prefix + std::to_string(frame) + ".bin";
-        if (FILE* f = std::fopen(path.c_str(), "wb")) std::fwrite(machine.Ram(), 1, st::kRamSize, f), std::fclose(f);
+        if (FILE* f = std::fopen(path.c_str(), "wb")) std::fwrite(machine.Ram(), 1, machine.RamSize(), f), std::fclose(f);
       }
       if (frame == opt.dump_frame) {
         if (FILE* f = std::fopen(opt.dump_file.c_str(), "wb")) {
-          std::fwrite(machine.Ram(), 1, st::kRamSize, f);
+          std::fwrite(machine.Ram(), 1, machine.RamSize(), f);
           std::fclose(f);
           LOG("RAM dumped to %s", opt.dump_file.c_str());
         }

@@ -14,6 +14,9 @@
 //   as it speeds up;
 // - Camels' power-ups: a pickup starts a palette flash ($3D5D0 = $3D636 / $3D736, level $3D5D4 jumping to 7; TT
 //   $3D960 = $3D9C6 / $3DAC6, $3D964): a tiny blip.
+// - Llamazap (Falcon, 2026-11-20): lives $527F2 (the hearts on the HUD, 5 at the start; 1 -> 0 = game over), kills
+//   = its score digits (a word each at $4B5B0) going up in play (the VBL routine $2F98C = the level's own $5269A),
+//   tokens ($4B544 = tokens - 1): one more = a blip, fewer = a power-up bought (a firmer one).
 #include "rumble.h"
 
 #include <algorithm>
@@ -45,7 +48,8 @@ int g_touched = -100000;  // the frame the pad was last used (attract demos die 
 std::vector<uint8_t> g_digits;  // the score digits last frame (kills)
 uint32_t g_hud[3] = {1, 2, 3};  // Photon Storm: the score area's last pictures (screens alternate)
 uint32_t g_flash_prev = 0;      // Llamatron: the colour list pointer last frame
-int g_level_prev = 0;           // Camels: the pickup flash's level last frame
+int g_level_prev = 0;           // Camels: the pickup flash's level last frame; Llamazap: the tokens
+constexpr int kNoValue = -100000;
 double g_puck_x = -1, g_puck_y = -1;
 int g_kills = 0;  // (counted for the log)
 int g_death_at = -100000;  // the frame of the last life lost (Photon Storm redraws its score panel then)
@@ -77,7 +81,8 @@ uint32_t Read32(const st::Machine& m, uint32_t a) {
 }
 
 void Event(Kind kind, bool idle) {
-  static const char* kNames[] = {"life lost", "smart bomb", "kill", "kill (strong)", "pickup"};
+  const char* kNames[] = {"life lost", g_id == "llamazap" ? "power-up bought" : "smart bomb", "kill",
+                          "kill (strong)", "pickup"};
   if (kind == Kind::kKill || kind == Kind::kBigKill) {
     if (++g_kills % 10 == 1) LOG("rumble: kills so far %d (frame %d)%s", g_kills, g_frames, idle ? " (idle)" : "");
   } else {
@@ -123,7 +128,7 @@ void Start(const std::string& id) {
   g_touched = -100000;
   g_digits.clear();
   g_hud[0] = 1, g_hud[1] = 2, g_hud[2] = 3;
-  g_flash_prev = 0, g_level_prev = 0, g_kills = 0, g_death_at = -100000;
+  g_flash_prev = 0, g_level_prev = id == "llamazap" ? kNoValue : 0, g_kills = 0, g_death_at = -100000;
   g_puck_x = g_puck_y = -1;
   g_pulses.clear();
   g_sent_low = g_sent_high = 0;
@@ -137,6 +142,7 @@ void Start(const std::string& id) {
   if (id == "rmc") g_watches = {{0x19264, 2, W::kDropsByOne, K::kDeath}};
   if (id == "rmctt") g_watches = {{0x1929C, 2, W::kDropsByOne, K::kDeath}};
   if (id == "hardcore") g_watches = {{0x14839, 1, W::kDropsByOne, K::kDeath}};
+  if (id == "llamazap") g_watches = {{0x527F2, 2, W::kDropsByOne, K::kDeath}};
   if (id == "defender2")
     g_watches = {{0x2F2DE, 2, W::kStartsFromZero, K::kDeath}, {0x2BA44, 2, W::kDropsByOne, K::kBomb}};
   g_prev.assign(g_watches.size(), -1);
@@ -192,6 +198,16 @@ void Frame(const st::Machine& m, SDL_Gamepad* pad) {
     } else {
       g_puck_x = g_puck_y = -1;
     }
+  } else if (g_id == "llamazap") {
+    const uint32_t vbl = Read32(m, 0x2F98C);
+    const bool play = vbl == Read32(m, 0x5269A) && vbl != 0x13DA0 && vbl >= 0x10000;
+    if (DigitsUp(m, 0x4B5B0, 16) && play && settled) Event(Kind::kKill, idle);
+    const int tokens = int16_t(Read(m, 0x4B544, 2));
+    if (play && settled && g_level_prev != kNoValue) {
+      if (tokens == g_level_prev + 1) Event(Kind::kBlip, idle);
+      else if (tokens < g_level_prev) Event(Kind::kBomb, idle);  // (a power-up bought)
+    }
+    g_level_prev = play ? tokens : kNoValue;
   } else if (g_id == "rmc" || g_id == "rmctt") {
     const bool tt = g_id == "rmctt";
     const bool play = Read32(m, tt ? 0x3E0CE : 0x3DD3E) == (tt ? 0x11206u : 0x111DEu);
