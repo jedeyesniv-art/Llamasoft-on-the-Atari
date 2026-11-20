@@ -33,8 +33,26 @@ uint16_t Get16(const st::Machine& m, uint32_t a) { return uint16_t(m.Ram()[a] <<
 uint32_t Get32(const st::Machine& m, uint32_t a) { return uint32_t(Get16(m, a)) << 16 | Get16(m, a + 2); }
 void Put16(st::Machine* m, uint32_t a, uint16_t v) { m->Ram()[a] = uint8_t(v >> 8), m->Ram()[a + 1] = uint8_t(v); }
 
+// The screen itself is skipped (owner 2026-11-20: a block to play): $1AAC6 calls the entry screen ($26A28: the
+// alphabet grid, then d4 = -1 + the sum of the letters' codes, 7 bits) only while $4B628 is set (once a session:
+// play clears it after its own check at $13B44). The hook answers d4 = the wanted code without showing it; the
+// check at $1AB9C then passes as typed (its hook stays as a safety). $5138A is set by the screen's question
+// ($2635E): never asked, it stays as it is - the same value both sides of both checks. A trap in it: the screen
+// writes the rts at $24158 a byte at a time ($26446 $4E, $164E2 $75), the end of a routine play calls - left
+// out, play stops on an illegal instruction. The hook writes it.
+constexpr uint32_t kEntryCall = 0x1AAC6, kEntryNext = 0x1AACC;  // bsr.l $26A28
+constexpr uint32_t kPlantedRts = 0x24158;
+
+void OnEntryScreen(st::Machine& m) {
+  cpu::Set(cpu::Reg(cpu::D0 + 4), (cpu::Get(cpu::Reg(cpu::D0 + 4)) & 0xFFFF0000u) | Get16(m, kWanted));
+  Put16(&m, kPlantedRts, 0x4E75);
+  if (!m.sandbox) LOG("llamazap: the manual check skipped");
+  cpu::Set(cpu::PC, kEntryNext);
+}
+
 void OnManualCheck(st::Machine& m) {
   uint32_t want = Get16(m, kWanted);
+  if (!m.sandbox) LOG("llamazap: typed word's code $%02X, the manual's $%02X", unsigned(cpu::Get(cpu::Reg(cpu::D0 + 3)) & 0xFFFF), want);
   for (int r : {3, 4}) cpu::Set(cpu::Reg(cpu::D0 + r), (cpu::Get(cpu::Reg(cpu::D0 + r)) & 0xFFFF0000u) | want);
   if (!m.sandbox) LOG("llamazap: the manual check answered");
   cpu::Set(cpu::PC, kCheckPass);
@@ -108,6 +126,10 @@ void Update(st::Machine* m) {
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
     Put16(m, kCheck, 0x4AFC);
     m->AddHook(kCheck, OnManualCheck);
+  }
+  if (Get16(*m, kEntryCall) == 0x61FF && Get32(*m, kEntryCall + 2) == 0xBF60) {
+    Put16(m, kEntryCall, 0x4AFC);
+    m->AddHook(kEntryCall, OnEntryScreen);
   }
   // The divisor: 1 in play, the original 2 elsewhere (only this build: the main loop reads it where we expect).
   if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) {

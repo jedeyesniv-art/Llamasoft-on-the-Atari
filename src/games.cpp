@@ -266,7 +266,6 @@ std::vector<Known> KnownGames() {
                         "R3                   keypad 5",
                         "{Y}                    option      {START} pause",
                         "{BACK}                 settings   ({B} there: back to the disks)", "",
-                        "The manual check: type any word, then OK.",
                         "Keyboard: cursors, Z fire, X B, C, digits keypad,",
                         "O option, P pause."};
   wip("hardcore", "HARDCORE", "HARDCORE.PRG", "HARDCORE  -  YAK, 1991 (UNFINISHED)",

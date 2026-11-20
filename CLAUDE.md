@@ -55,6 +55,10 @@ elease\Llamatron-<ver>-windows.zip (no game
 - Manual check (protection): a random page / paragraph / line / word of the manual (one 7-bit code a word at
   $473EE), the typed word hashed; compared at $1AB9C (d3 vs $5138A), kept in $526C0 and checked again in play
   ($13B44: punishes later). Hook at $1AB9C makes d3 / d4 the wanted code: any word, then OK.
+  2026-11-20 (owner): the screen is skipped - hook on its call $1AAC6 (bsr $26A28, made only while $4B628 is set:
+  once a session) answers d4 = the wanted code. Trap: the screen plants the rts at $24158 ($26446 $4E, $164E2
+  $75), the end of a routine play calls (else an illegal instruction): the hook writes it. Typed code = -1 + the
+  letters' sum, 7 bits; logged ("typed word's code"). The owner's question p7 para 1 l1 w12 = "you" ($5C), verified.
 - Sound: its DSP program (730 words, Dsp_ExecProg) is NOT emulated - a mixer stands in (Machine::DspPacket /
   MixDsp): Dsp_ExecProg resets; two 1-word DoBlocks = parameters; BlkHandShake blocks load DSP memory from $300
   (MOD samples, 3 a word, bytes swapped by the 68030) then $4803 (effects, 4-bit, 6 a word, silence 8). Twice a
