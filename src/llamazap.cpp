@@ -2,6 +2,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <utility>
+
 #include "cpu.h"
 #include "games.h"
 #include "log.h"
@@ -58,15 +60,21 @@ void OnManualCheck(st::Machine& m) {
   cpu::Set(cpu::PC, kCheckPass);
 }
 
-// The keypad as a 3 x 3 grid on the right stick (flicked: up-left 1, up 2, up-right 3, left 4, right 6, down-left
-// 7, down 8, down-right 9; R3 = 5): in play the keys buy power-ups (1-9: power-ups 0-8, table $11CC8) and pick a
-// ship by column (1 4 7 *, 2 5 8 0, 3 6 9 #: $13028).
+// The keypad on the right stick (owner 2026-11-20), flicked: up-left 2, up 3, up-right 4, left 5, right 6,
+// down-left 7, down 8, down-right 9; R3 = 1 (key 1 = power-up 0, a new ship: kept off the stick so it isn't
+// bought by accident). In play the keys buy power-ups (1-9: power-ups 0-8, table $11CC8). Buying 1 shows SELECT
+// SHIP: $2F594 >= 0 counts down ~300 frames, and a key's column on the Jaguar keypad picks the ship ($13046:
+// 1 4 7 * Phoenix, 2 5 8 0 Falcon, 3 6 9 # Condor; first all keys must be up: $49DB8). Then the d-pad picks
+// instead (left 4 Phoenix, up 5 Falcon, right 6 Condor; those three don't move the ship then), the right stick
+// and R3 are off.
+constexpr uint32_t kShipSelect = 0x2F594;
 uint32_t KeypadFromStick(const pad::State& p) {
   float x = p.rx, y = p.ry;
   if (x * x + y * y < 0.6f * 0.6f) return 0;
   int col = x < -0.38f ? 0 : x > 0.38f ? 2 : 1, row = y < -0.38f ? 0 : y > 0.38f ? 2 : 1;
-  if (row == 1 && col == 1) return 0;
-  return st::kJagKey0 << (row * 3 + col + 1);
+  static const int kKey[3][3] = {{2, 3, 4}, {5, 0, 6}, {7, 8, 9}};
+  int key = kKey[row][col];
+  return key ? st::kJagKey0 << key : 0;
 }
 
 // Keyboard: cursor keys, Z / Space = A, X = B, C = C, O = Option, P = Pause, digits = the keypad (keypad * and /
@@ -105,11 +113,18 @@ void Reset() { LoadSettings(); }
 void LoadSettings() { g_50fps = settings::Get("llamazap_50fps", 1) != 0; }
 
 // The pad as the Jaguar pad: left stick / d-pad the directions, A = A (fire), B = B (jump / lock the fire angle),
-// X = C (fire), RT = A too, Y = Option, Start = Pause, the right stick and R3 the keypad.
+// X = C (fire), RT = A too, Y = Option, Start = Pause, the right stick and R3 the keypad (R3 = 1).
 void Update(st::Machine* m) {
   const pad::State& p = pad::Now();
   uint32_t bits = 0;
-  uint8_t joy = pad::JoyBits(p);  // left stick or d-pad
+  const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0;
+  pad::State q = p;  // ship select: the d-pad's left / up / right are the ships, not moves
+  if (ship_select) {
+    for (auto [b, key] : {std::pair{SDL_GAMEPAD_BUTTON_DPAD_LEFT, 4}, std::pair{SDL_GAMEPAD_BUTTON_DPAD_UP, 5},
+                          std::pair{SDL_GAMEPAD_BUTTON_DPAD_RIGHT, 6}})
+      if (p.Held(b)) bits |= st::kJagKey0 << key, q.buttons &= ~(1u << b);
+  }
+  uint8_t joy = pad::JoyBits(q);  // left stick or d-pad
   if (joy & st::kJoyUp) bits |= st::kJagUp;
   if (joy & st::kJoyDown) bits |= st::kJagDown;
   if (joy & st::kJoyLeft) bits |= st::kJagLeft;
@@ -119,8 +134,11 @@ void Update(st::Machine* m) {
   if (p.Held(SDL_GAMEPAD_BUTTON_WEST)) bits |= st::kJagC;
   if (p.Held(SDL_GAMEPAD_BUTTON_NORTH)) bits |= st::kJagOption;
   if (p.Held(SDL_GAMEPAD_BUTTON_START)) bits |= st::kJagPause;
-  if (p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) bits |= st::kJagKey0 << 5;
-  bits |= KeypadFromStick(p) | FromKeyboard();
+  if (!ship_select) {
+    if (p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) bits |= st::kJagKey0 << 1;
+    bits |= KeypadFromStick(p);
+  }
+  bits |= FromKeyboard();
   m->SetJagpad(bits);
   // Once unpacked (the program unpacks itself over where it was loaded): the manual check's hook.
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {

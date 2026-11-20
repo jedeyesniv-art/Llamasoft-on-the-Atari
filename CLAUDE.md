@@ -51,7 +51,9 @@ elease\Llamatron-<ver>-windows.zip (no game
   bit 0 Pause (row 0) / bit 1 A B C Option (rows 0-3), $FF9202 bits 0-3 = U D L R / * 7 4 1 / 0 8 5 2 / # 9 6 3
   (from the game's own reader $119A0; C also counts as A). Keypad in play: 1-9 buy power-ups 0-8 (table $11CC8,
   tokens $4B544); a key's column picks the ship ($13028: Phoenix / Falcon / Condor). llamazap.cpp: A / RT = A, X = C,
-  B = B (jump / lock the fire angle), Y Option, Start Pause, right stick flicked = keypad 3 x 3 (R3 = 5), keyboard too.
+  B = B (jump / lock the fire angle), Y Option, Start Pause, right stick flicked = keypad 2-9 (up-left 2, up 3, up-right 4, left 5, right 6, down-left 7, down 8,
+  down-right 9; owner 2026-11-20), R3 = 1 (a new ship: off the stick); on SELECT SHIP ($2F594 >= 0, ~300
+  frames after 1) the d-pad picks (left 4 Phoenix, up 5 Falcon, right 6 Condor: not moves then), right stick / R3 off, keyboard too.
 - Manual check (protection): a random page / paragraph / line / word of the manual (one 7-bit code a word at
   $473EE), the typed word hashed; compared at $1AB9C (d3 vs $5138A), kept in $526C0 and checked again in play
   ($13B44: punishes later). Hook at $1AB9C makes d3 / d4 the wanted code: any word, then OK.
