@@ -11,6 +11,8 @@ class Machine;
 namespace llamazap {
 
 void Reset();
+// Rereads llamazap_50fps (Reset does too).
+void LoadSettings();
 // Once a frame: pad 1 (pad::Now) -> the Jaguar pad.
 void Update(st::Machine* m);
 // A line over the picture, or null.

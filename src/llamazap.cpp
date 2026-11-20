@@ -3,9 +3,11 @@
 #include <SDL3/SDL.h>
 
 #include "cpu.h"
+#include "games.h"
 #include "log.h"
 #include "machine.h"
 #include "pad.h"
+#include "settings.h"
 
 namespace llamazap {
 namespace {
@@ -18,6 +20,14 @@ namespace {
 // had looked it up - any word passes.
 constexpr uint32_t kWanted = 0x5138A;
 constexpr uint32_t kCheck = 0x1AB9C, kCheckPass = 0x1ABA8;  // cmp.w $5138A,d3 ; bne (fail) ; (pass)
+
+// 50 frames a second (llamazap_50fps, default 1): the main loop ($14006..$1404E) draws into the next screen, then
+// sets the countdown $2F9A2 to the divisor $49DDC (2: 25 drawn frames a second) and waits for the VBL to count it
+// down ($1316A, which also shows the new screen). All the game's logic is in the VBL (routine *$2F98C = $11FE4 in
+// play): with 1 the scroll is identical frame for frame, and the Falcon's own 16 MHz draws all 50 (~70% of the
+// instructions still in the wait loop). The game itself has it as a hidden key: 1-9 = the divisor ($10AFA).
+constexpr uint32_t kDivisor = 0x49DDC, kDivisorRead = 0x1403C, kVblRoutine = 0x2F98C, kPlayRoutine = 0x11FE4;
+bool g_50fps = true;
 
 uint16_t Get16(const st::Machine& m, uint32_t a) { return uint16_t(m.Ram()[a] << 8 | m.Ram()[a + 1]); }
 uint32_t Get32(const st::Machine& m, uint32_t a) { return uint32_t(Get16(m, a)) << 16 | Get16(m, a + 2); }
@@ -72,7 +82,9 @@ uint32_t FromKeyboard() {
 
 }  // namespace
 
-void Reset() {}
+void Reset() { LoadSettings(); }
+
+void LoadSettings() { g_50fps = settings::Get("llamazap_50fps", 1) != 0; }
 
 // The pad as the Jaguar pad: left stick / d-pad the directions, A = A (fire), B = B (jump / lock the fire angle),
 // X = C (fire), RT = A too, Y = Option, Start = Pause, the right stick and R3 the keypad.
@@ -96,6 +108,11 @@ void Update(st::Machine* m) {
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
     Put16(m, kCheck, 0x4AFC);
     m->AddHook(kCheck, OnManualCheck);
+  }
+  // The divisor: 1 in play, the original 2 elsewhere (only this build: the main loop reads it where we expect).
+  if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) {
+    bool play = Get32(*m, kVblRoutine) == kPlayRoutine;
+    Put16(m, kDivisor, g_50fps && !games::Stock() && play ? 1 : 2);
   }
 }
 

@@ -61,8 +61,13 @@ elease\Llamatron-<ver>-windows.zip (no game
   frame the 68030 ($286C4) sends 56 words through the host port: 7 voices x (flags bit0 on bit1 start, address,
   shift, length, pitch = ProTracker period x 450.11, left, right 0..64, unused); 6 music voices, the 7th effects.
   Paula-style: a voice plays to its end, then loops from the latest address / length. Mono out. Owner: sounds right.
-- Draws 25 frames/s in play by design (same at 4x CPU). Smoke test has a llamazap run (Tools/smoke_all.ps1).
-- Next (ideas): owner's verdict on the right-stick keypad; 50 fps (find its frame divisor); stereo; launcher
+- 50 fps (2026-11-20): the main loop ($14006..$1404E) sets the countdown $2F9A2 to the divisor $49DDC (2) after
+  each drawn frame; the VBL ($1316A) counts it down and shows the screen. All logic is in the VBL (routine
+  *$2F98C = $11FE4 in play): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel LLAMAZAP), 2
+  elsewhere. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
+  as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
+- Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher
   preview; remap list; rumble; a label on sheet 3's empty row (stand-in for now).
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)

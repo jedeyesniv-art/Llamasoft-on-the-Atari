@@ -43,7 +43,8 @@ const Section kSections[] = {
     {"general", "GENERAL"},       {"llamatron", "LLAMATRON"},
     {"gridrunner", "SUPER GRIDRUNNER"}, {"photonstorm", "PHOTON STORM"}, {"andes", "ANDES ATTACK"},
     {"rmc", "MUTANT CAMELS"},
-    {"defender2", "DEFENDER 2"},  {"hardcore", "HARDCORE"},  {"tripatron", "TRIP-A-TRON"},
+    {"defender2", "DEFENDER 2"},  {"hardcore", "HARDCORE"},  {"llamazap", "LLAMAZAP"},
+    {"tripatron", "TRIP-A-TRON"},
     {"tripkeys", "TRIP-A-TRON CONTROLS"},
     {"controls", "CONTROLS"},     {"crt", "CRT LOOK"},       {"crtpp", "CRT++"},
 };
@@ -176,6 +177,9 @@ const std::vector<Item>& Items() {
        "The game's flashing strobes (its S key still switches them).", true},
       {"hardcore", "STOCK ST", "hardcore_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (15 to 20 frames a second in play), no remaster. Your controls stay. For purists and the brave.", true},
+
+      {"llamazap", "50 FRAMES A SECOND", "llamazap_50fps", Kind::kToggle, 1, 0, 1, 1, {},
+       "Draws every frame in play (the original: 25). The game's speed is the same."},
 
       {"tripatron", "LIGHT SPEED", "trip_stick_speed", Kind::kSlider, 5, 1, 12, 0.5, {},
        "How fast the left stick moves the light source."},

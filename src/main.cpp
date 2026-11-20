@@ -430,6 +430,7 @@ void ApplySettings(const Options& opt) {
   crt::LoadSettings();
   remaster::LoadSettings();
   stgames::LoadSettings();
+  llamazap::LoadSettings();
   remap::Reload();  // (the control scheme may have changed the list)
   if (opt.remaster_ahead >= 0) remaster::SetAhead(opt.remaster_ahead);
   if (opt.aim < 0) game::SetAnalogAim(settings::Get("analog_aim", 0) != 0);
@@ -704,6 +705,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       trip::LoadSettings();
       crt::LoadSettings();
       remaster::LoadSettings();
+      llamazap::LoadSettings();
       if (opt.remaster_ahead >= 0) remaster::SetAhead(opt.remaster_ahead);
       if (opt.aim < 0) game::SetAnalogAim(settings::Get("analog_aim", 0) != 0);
     }
