@@ -266,6 +266,7 @@ std::vector<Known> KnownGames() {
                         "                     up-left 2, up 3, up-right 4,",
                         "                     left 5, right 6, down-left 7,",
                         "                     down 8, down-right 9",
+                        "LLAMATRONIC, SON OF LLAMATRON: RIGHT STICK aims",
                         "{LB} (HOLD)            power-up menu: the game stops,",
                         "                     right stick picks, let go = buy",
                         "SELECT SHIP (after R3): D-PAD left PHOENIX,",

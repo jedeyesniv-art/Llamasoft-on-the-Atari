@@ -92,7 +92,13 @@ elease\Llamatron-<ver>-windows.zip (no game
   2F212 2E83E 2F04E 2EBC6 2ECAE 2ED96 2EE0A 2F0C2); profiles at $2B452 (32 bytes, best level - 1 at +$14).
 - START AT STAGE (owner 2026-11-20; llamazap_stage 0 = the game's own, 1..25, panel LLAMAZAP, names = the
   briefings): hook on the start's move.l a0,$2E6EE ($10278) points it at stage n's table entry; any level picked
-  starts there and play carries on in order. Verified 15 / 21 / 25 land on $1294E / $12C6C / $1230E. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  starts there and play carries on in order. Verified 15 / 21 / 25 land on $1294E / $12C6C / $1230E.
+- Twin stick on Llamatronic (5, VBL $12C90) and Son of Llamatron (21, $12C6C) (owner 2026-11-20; llamazap_twin_stick
+  1): both fire on their own, a 3-way spread round $525F2 (0..7 clockwise from up-left; -1 = 7). Each VBL ($1C3E4..)
+  A / C step it (Jaguar bits read 0 = pressed), then $1C460: unless B is held (the lock) it follows the way the ship
+  moves (table $1C5FE). Hook at $1C460: right stick pushed (0.5) = its 8-way angle written, the follow skipped; let
+  go = the game's own. Verified all 8 directions, aim held while moving (5 up / right, 21 right / up). The right
+  stick's keypad is off on those stages (no keypad there). Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

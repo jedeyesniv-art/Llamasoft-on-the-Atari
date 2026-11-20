@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
@@ -45,6 +46,17 @@ bool g_50fps = true;
 // that place to $2E6EE ($10278: move.l a0,$2E6EE); the hook writes stage s's instead, play carries on in order.
 constexpr uint32_t kStages = 0x2E666, kStageAt = 0x2E6EE, kStageStart = 0x10278, kStageNext = 0x1027E;
 int g_stage = 0;
+// Twin stick on the Llamatron stages (owner 2026-11-20; llamazap_twin_stick, default 1): Llamatronic (VBL $12C90)
+// and Son of Llamatron ($12C6C) fire on their own in the direction $525F2 (0..7 clockwise from up-left: UL U UR R
+// DR D DL L); each VBL ($1C3E4..) the pad's A / C step it round a press at a time, then ($1C460) unless B is held
+// (the lock) it follows the way the ship moves (table $1C5FE). The hook there: with the right stick pushed it is
+// the stick's angle instead and the follow is skipped; let go, the game's own again. No keypad on those stages,
+// so the right stick is free.
+constexpr uint32_t kFireDir = 0x525F2, kFireFollow = 0x1C460, kFireFollowDo = 0x1C46E, kFireFollowSkip = 0x1C480;
+constexpr uint32_t kPadB = 0x4E8B9;
+bool g_twin_stick = true;
+int g_aim = -1;  // the right stick's direction in the game's numbering, -1 = not pushed
+
 
 uint16_t Get16(const st::Machine& m, uint32_t a) { return uint16_t(m.Ram()[a] << 8 | m.Ram()[a + 1]); }
 uint32_t Get32(const st::Machine& m, uint32_t a) { return uint32_t(Get16(m, a)) << 16 | Get16(m, a + 2); }
@@ -56,6 +68,11 @@ bool InLevel(const st::Machine& m) {
 }
 // The level types whose VBL routine runs the keypad handler $1301C (power-ups, ship select); not Night Mares
 // ($12C6C) and the others set at $1A404.. (no keypad there in the original).
+bool LlamatronStage(const st::Machine& m) {
+  if (!InLevel(m)) return false;
+  uint32_t r = Get32(m, kVblRoutine);
+  return r == 0x12C90 || r == 0x12C6C;
+}
 bool KeypadLevel(const st::Machine& m) {
   if (!InLevel(m)) return false;
   switch (Get32(m, kVblRoutine)) {
@@ -82,6 +99,15 @@ void OnEntryScreen(st::Machine& m) {
 }
 
 void Put32(st::Machine* m, uint32_t a, uint32_t v) { Put16(m, a, uint16_t(v >> 16)), Put16(m, a + 2, uint16_t(v)); }
+
+void OnFireFollow(st::Machine& m) {  // was: btst #1,$4E8B9 ; beq $1C480 (B pressed = 0: the lock)
+  if (g_aim >= 0) {
+    Put16(&m, kFireDir, uint16_t(g_aim));
+    cpu::Set(cpu::PC, kFireFollowSkip);
+    return;
+  }
+  cpu::Set(cpu::PC, (m.Ram()[kPadB] & 2) ? kFireFollowDo : kFireFollowSkip);
+}
 
 void OnStageStart(st::Machine& m) {
   uint32_t at = cpu::Get(cpu::A0);
@@ -265,6 +291,7 @@ bool MenuOpen() { return g_menu.open; }
 void LoadSettings() {
   g_50fps = settings::Get("llamazap_50fps", 1) != 0;
   g_stage = std::clamp(int(settings::Get("llamazap_stage", 0)), 0, 25);
+  g_twin_stick = settings::Get("llamazap_twin_stick", 1) != 0;
 }
 
 // The pad as the Jaguar pad: left stick / d-pad the directions, A = A (fire), B = B (jump / lock the fire angle),
@@ -295,7 +322,14 @@ void Update(st::Machine* m) {
   if (p.Held(SDL_GAMEPAD_BUTTON_START)) bits |= st::kJagPause;
   if (g_stick_blocked && p.rx * p.rx + p.ry * p.ry < 0.3f * 0.3f && !p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK))
     g_stick_blocked = false;
-  if (!ship_select && !g_stick_blocked) {
+  const bool twin = g_twin_stick && LlamatronStage(*m);
+  g_aim = -1;
+  if (twin && p.rx * p.rx + p.ry * p.ry >= 0.5f * 0.5f) {
+    // Clockwise from up, in eighths; the game's 0 is up-left.
+    float a = std::atan2(p.rx, -p.ry);
+    g_aim = (int(std::lround(a / (3.14159265f / 4))) + 1) & 7;
+  }
+  if (!ship_select && !g_stick_blocked && !twin) {
     if (p.Held(SDL_GAMEPAD_BUTTON_RIGHT_STICK)) bits |= st::kJagKey0 << 1;
     bits |= KeypadFromStick(p);
   }
@@ -310,6 +344,10 @@ void Update(st::Machine* m) {
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
     Put16(m, kCheck, 0x4AFC);
     m->AddHook(kCheck, OnManualCheck);
+  }
+  if (Get32(*m, kFireFollow) == 0x08390001 && Get32(*m, kFireFollow + 4) == kPadB) {
+    Put16(m, kFireFollow, 0x4AFC);
+    m->AddHook(kFireFollow, OnFireFollow);
   }
   if (Get16(*m, kStageStart) == 0x23C8 && Get32(*m, kStageStart + 2) == kStageAt) {
     Put16(m, kStageStart, 0x4AFC);
