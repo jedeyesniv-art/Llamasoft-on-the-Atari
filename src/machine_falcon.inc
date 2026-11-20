@@ -313,22 +313,51 @@ void Machine::DspPacket() {
     const uint32_t pitch = w[4];
     v.step = pitch ? kPaulaHz * kPeriodScale / double(pitch) / sample_rate_ : 0;
     v.left = float(std::min<uint32_t>(w[5] & 0xFFFF, 64)) / 64, v.right = float(std::min<uint32_t>(w[6] & 0xFFFF, 64)) / 64;
+    if (SDL_getenv("FALCON_DSP_VOICES") && !sandbox && (w[0] & 2)) {  // (tests: each sample started)
+      static int logged = 0;
+      if (logged++ < 400)
+        LOG("dsp voice %zu start: len %u pitch %u (%.0f Hz) vol %u / %u", i, w[3], pitch,
+            pitch ? kPaulaHz * kPeriodScale / double(pitch) : 0.0, w[5] & 0xFFFF, w[6] & 0xFFFF);
+    }
   }
   dsp_packet_.clear();
 }
 
+// The output: each voice read between its samples (linear), then the mix through a low-pass at 11 kHz - the
+// Falcon's codec ran at 24.6 kHz with its anti-imaging filter there; stepping the low-rate samples (the effects:
+// 4-bit at ~8.9 kHz) straight into 48 kHz left their images up to 24 kHz: harsh, "distorted" (owner 2026-11-20).
 void Machine::MixDsp(size_t from) {
+  if (from >= audio_.size()) return;
+  dsp_mix_.assign(audio_.size() - from, 0.0f);
+  static const char* mute = SDL_getenv("FALCON_DSP_MUTE");  // (tests: "fx" or "music")
   for (DspVoice& v : dsp_voice_) {
     if (!v.on || v.step <= 0 || (v.left == 0 && v.right == 0)) continue;
-    const float gain = (v.left + v.right) * 0.5f * 0.22f;
-    for (size_t i = from; i < audio_.size(); ++i) {
+    if (mute && std::string(mute) == (v.fx ? "fx" : "music")) continue;
+    const float gain = (v.left + v.right) * 0.5f * 0.22f * (v.fx ? dsp_fx_gain_ : 1.0f);
+    for (size_t i = 0; i < dsp_mix_.size(); ++i) {
       if (v.pos >= v.end) {
         if (v.next_len < 1) break;
         v.pos = v.next + std::fmod(v.pos - v.end, v.next_len), v.end = v.next + v.next_len;
       }
-      audio_[i] += float(DspByte(v.fx, uint32_t(v.pos))) / 128.0f * gain;
+      const uint32_t k = uint32_t(v.pos);
+      const float f = float(v.pos - double(k)), a = float(DspByte(v.fx, k));
+      const float b = double(k + 1) < v.end ? float(DspByte(v.fx, k + 1)) : a;
+      dsp_mix_[i] += (a + (b - a) * f) / 128.0f * gain;
       v.pos += v.step;
     }
+  }
+  // A 2-pole low-pass (RBJ, Q 0.707).
+  const double w0 = 2 * 3.14159265358979 * 11000.0 / double(sample_rate_), al = std::sin(w0) / (2 * 0.7071);
+  const double cs = std::cos(w0), a0 = 1 + al;
+  const double b0 = (1 - cs) / 2 / a0, b1 = (1 - cs) / a0, b2 = b0, a1 = -2 * cs / a0, a2 = (1 - al) / a0;
+  double& x1 = dsp_lp_[0];
+  double& x2 = dsp_lp_[1];
+  double& y1 = dsp_lp_[2];
+  double& y2 = dsp_lp_[3];
+  for (size_t i = 0; i < dsp_mix_.size(); ++i) {
+    const double x = dsp_mix_[i], y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    x2 = x1, x1 = x, y2 = y1, y1 = y;
+    audio_[from + i] += float(y);
   }
 }
 
@@ -387,6 +416,16 @@ bool Machine::FalconXbios(uint32_t args, uint32_t* d0, bool* handled) {
       for (uint32_t i = 0; i < n && in + i * 3 + 2 < ram_size_ && dsp_load_ < dsp_mem_.size(); ++i)
         dsp_mem_[dsp_load_++] = word(i);
       if (!sandbox) LOG("dsp: %u words loaded at $%X (XBIOS %d from $%X)", n, at, fn, in);
+      if (const char* dump = SDL_getenv("FALCON_DSP_DUMP"); dump && !sandbox) {  // (tests: the words loaded)
+        std::string path = std::string(dump) + "_" + std::to_string(at) + ".bin";
+        if (FILE* f = std::fopen(path.c_str(), "wb")) {
+          for (uint32_t i = at; i < dsp_load_; ++i) {
+            uint8_t b[3] = {uint8_t(dsp_mem_[i] >> 16), uint8_t(dsp_mem_[i] >> 8), uint8_t(dsp_mem_[i])};
+            std::fwrite(b, 1, 3, f);
+          }
+          std::fclose(f);
+        }
+      }
       return true;
     }
     case 103: *d0 = 3; return true;  // Dsp_GetWordSize

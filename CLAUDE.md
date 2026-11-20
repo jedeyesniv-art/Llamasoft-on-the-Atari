@@ -76,6 +76,15 @@ elease\Llamatron-<ver>-windows.zip (no game
   frame the 68030 ($286C4) sends 56 words through the host port: 7 voices x (flags bit0 on bit1 start, address,
   shift, length, pitch = ProTracker period x 450.11, left, right 0..64, unused); 6 music voices, the 7th effects.
   Paula-style: a voice plays to its end, then loops from the latest address / length. Mono out. Owner: sounds right.
+  2026-11-20 (owner: effects "hot and distorted", music fine): the source - LLAMAFX.BIN is linear 4-bit, recorded hot
+  (over a third of its samples at 0 / 1 / 14 / 15), the game sends the effects voice at volume 85 (we cap at 64)
+  against 4..30 for the music voices: effects ~10 dB over the music (gated loudness: effects alone -21, music alone
+  -31 LUFS). We didn't clip (output peak 0.35). Changed: voices read between samples (linear) and the DSP mix
+  through a 2-pole low-pass at 11 kHz (the Falcon codec's at 24.6 kHz; stepping the ~8.9 kHz effects into 48 kHz
+  left images up to 24 kHz: the harshness), setting llamazap_fx_volume (panel EFFECTS VOLUME, squared, default 1 =
+  the game's), Llamazap in NormalGainDb (+2.0 dB: -25.0 LUFS raw -> -23.0, peaks -7.3 dB). Tests (env):
+  FALCON_DSP_DUMP=<prefix> writes each DSP load, FALCON_DSP_VOICES logs each sample started (length, rate,
+  volumes), FALCON_DSP_MUTE=fx|music.
 - 50 fps (2026-11-20): the main loop ($14006..$1404E) sets the countdown $2F9A2 to the divisor $49DDC (2) after
   each drawn frame; the VBL ($1316A) counts it down and shows the screen. All logic is in the VBL (routine
   *$2F98C = the level's own routine *$5269A): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel

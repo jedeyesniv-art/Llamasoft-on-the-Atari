@@ -89,6 +89,8 @@ class Machine {
   // `margin` pixels more each side (for sliding it); other lines are copied from the picture. SetCleanMargin(0) = off.
   void SetCleanSource(int i, uint32_t lo, uint32_t hi, int32_t shift) { clean_src_[i & 1] = {lo, hi, shift}; }
   void SetCleanMargin(int px) { clean_margin_ = px; }
+  // The Falcon DSP stand-in's effects voice (Llamazap's 4-bit effects), x this (1 = as the game sends them).
+  void SetDspFxGain(float g) { dsp_fx_gain_ = g; }
   int CleanMargin() const { return clean_margin_; }
   const std::vector<uint32_t>& CleanFrame() const { return clean_; }  // (FrameWidth() + 2 margin) x FrameHeight()
   const std::vector<uint8_t>& CleanLines() const { return clean_line_; }  // per line: 1 = from a clean source
@@ -264,6 +266,9 @@ class Machine {
     float left = 0, right = 0;        // 0..1
   };
   std::vector<uint32_t> dsp_mem_ = std::vector<uint32_t>(0x8000);
+  std::vector<float> dsp_mix_;            // this slice's voices, before the output filter
+  double dsp_lp_[4] = {};                 // the output filter's state (x1 x2 y1 y2)
+  float dsp_fx_gain_ = 1;
   uint32_t dsp_load_ = 0x300;
   int dsp_params_ = 0;                  // one-word blocks after Dsp_ExecProg: its parameters
   std::vector<uint32_t> dsp_packet_;

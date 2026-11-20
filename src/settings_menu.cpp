@@ -182,6 +182,8 @@ const std::vector<Item>& Items() {
        "Draws every frame in play (the original: 25). The game's speed is the same."},
       {"llamazap", "TWIN STICK (LLAMATRON STAGES)", "llamazap_twin_stick", Kind::kToggle, 1, 0, 1, 1, {},
        "Llamatronic and Son of Llamatron: the right stick aims the shots (off: the pad's A / C turn them round)."},
+      {"llamazap", "EFFECTS VOLUME", "llamazap_fx_volume", Kind::kSlider, 1, 0, 1, 0.05, {},
+       "The sound effects against the music. 1 = as the game plays them (about 10 dB over the music; 4-bit, recorded hot)."},
       {"llamazap", "START AT STAGE", "llamazap_stage", Kind::kChoice, 0, 0, 25, 1,
        {"THE GAME'S OWN", "1 BEASTIES: CAMELS", "2 BEASTIES: SPACE SHEEP", "3 BEASTIES: GET YOUR GOAT",
         "4 BEASTIES: CAMELS RETURN", "5 LLAMATRONIC", "6 AIR/SEA: CHASE", "7 AIR/SEA: SINKING FEELING",
