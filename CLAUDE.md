@@ -53,7 +53,14 @@ elease\Llamatron-<ver>-windows.zip (no game
   tokens $4B544); a key's column picks the ship ($13028: Phoenix / Falcon / Condor). llamazap.cpp: A / RT = A, X = C,
   B = B (jump / lock the fire angle), Y Option, Start Pause, right stick flicked = keypad 2-9 (up-left 2, up 3, up-right 4, left 5, right 6, down-left 7, down 8,
   down-right 9; owner 2026-11-20), R3 = 1 (a new ship: off the stick); on SELECT SHIP ($2F594 >= 0, ~300
-  frames after 1) the d-pad picks (left 4 Phoenix, up 5 Falcon, right 6 Condor: not moves then), right stick / R3 off, keyboard too.
+  frames after 1) the d-pad picks (left 4 Phoenix, up 5 Falcon, right 6 Condor: not moves then), right stick / R3 off
+- Power-up menu (2026-11-20, owner; text first, icons maybe later): LB held in play stops the game (main runs no
+  frames: llamazap::MenuOpen) and overlays the 9 keys in the stick's layout (R3 = 1 in the middle): names and
+  descriptions from the game's own texts (*($2C1F2 + 4 x type) + 8; type = byte 1 of the ship's slot *$49BA8 +
+  $24 + 4 x (key - 1), byte 0 negative = not on offer now), cost = the key's number; $4B544 = tokens - 1 (buy
+  allowed while key - 1 <= it, $11A34). Stick / R3 pick, B clears, letting go of LB presses the key (a frame with
+  none, then 3); the stick's keypad is off until it is let go. Verified: speed up 9 -> 7 tokens, R3 -> SELECT SHIP.
+  Icons: the game's message graphic per type ($2B5C6) - not decoded., keyboard too.
 - Manual check (protection): a random page / paragraph / line / word of the manual (one 7-bit code a word at
   $473EE), the typed word hashed; compared at $1AB9C (d3 vs $5138A), kept in $526C0 and checked again in play
   ($13B44: punishes later). Hook at $1AB9C makes d3 / d4 the wanted code: any word, then OK.
@@ -69,8 +76,23 @@ elease\Llamatron-<ver>-windows.zip (no game
   Paula-style: a voice plays to its end, then loops from the latest address / length. Mono out. Owner: sounds right.
 - 50 fps (2026-11-20): the main loop ($14006..$1404E) sets the countdown $2F9A2 to the divisor $49DDC (2) after
   each drawn frame; the VBL ($1316A) counts it down and shows the screen. All logic is in the VBL (routine
-  *$2F98C = $11FE4 in play): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel LLAMAZAP), 2
-  elsewhere. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  *$2F98C = the level's own routine *$5269A): llamazap.cpp writes 1 there in play (setting llamazap_50fps, panel
+  LLAMAZAP), 2 elsewhere. All 10 stage types checked (2026-11-20): same events as the original (some stage
+  intros a few frames shorter: timed by drawn frames), every frame drawn at the 68030's own speed (no boost needed;
+  a death / respawn runs another VBL routine: 2 there). Before, only $11FE4 was known (owner: levels 3+ at 25).
+- The 25 stages (5 levels x 5; table $2E666 of stage descriptors, a starting level = index x 5; briefings in the
+  text from $2D731): 1-4 Beasties, 6-9 Air/Sea ($11FE4), 5 LLAMATRONIC transition ($12C90: llama in orbit, cows;
+  "fire B locks the fire angle, A and C rotate it"), 10 Metagalactic ($12A2A), 11 / 14 Asteroids ($11CE0), 12 Yet
+  Another Game Style ($120E2), 13 Scramble ($120AA), 15 GRIDRUNNER transition and 23 ($1294E), 16-18 Furred I
+  ($11CF2), 19 ($11FE4), 20 Llama in a Jetpac ($1221A), 21 SON OF LLAMATRON ($12C6C), 22 Edge of Time ($12A2A), 24
+  boss mothership ($1259E), 25 final fight ($1230E); test-fly $11D20. Keypad (power-ups, menu) only where the VBL
+  routine calls $1301C: $11FE4 $11CE0 $11CF2 $11D20 $120AA $120E2. $2F594 >= 0 = SELECT SHIP, also offered after a
+  death. Tests: --poke=1000:@2E666:2 --poke=1000:@2E668:<descriptor low word> makes level 1 start with that stage
+  (descriptors: 2E758 2E926 2EA5C 2F286 2EB52 2EF66 2F36C 2F422 2F4D8 2EC3A 2EFDA 2EE7E 2EEF2 2F1AA 2ED22 2F136 2E8B2
+  2F212 2E83E 2F04E 2EBC6 2ECAE 2ED96 2EE0A 2F0C2); profiles at $2B452 (32 bytes, best level - 1 at +$14).
+- START AT STAGE (owner 2026-11-20; llamazap_stage 0 = the game's own, 1..25, panel LLAMAZAP, names = the
+  briefings): hook on the start's move.l a0,$2E6EE ($10278) points it at stage n's table entry; any level picked
+  starts there and play carries on in order. Verified 15 / 21 / 25 land on $1294E / $12C6C / $1230E. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

@@ -895,7 +895,8 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       slow_update += since(t_upd);
       uint64_t t_run = SDL_GetTicksNS();
       playing_second &= playing;
-      if (stgames::HostPaused() && (mode == input::Mode::kDefender2)) {
+      if ((stgames::HostPaused() && (mode == input::Mode::kDefender2)) ||
+          (mode == input::Mode::kLlamazap && llamazap::MenuOpen())) {
         machine.Audio().clear();  // paused: the picture stays, no sound, no frames
       } else {
         if (frame == opt.survey_from && !opt.survey_file.empty()) {
@@ -1072,6 +1073,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         }
       }
       if (tripatron && !menu::IsOpen()) trip::DrawOverlay(renderer, float(view_h));
+      if (mode == input::Mode::kLlamazap && !menu::IsOpen()) llamazap::DrawOverlay(renderer, float(view_h));
       if (menu::IsOpen()) {
         menu::Render(renderer);
         auto ms = opt.menushots.find(menu_ticks);

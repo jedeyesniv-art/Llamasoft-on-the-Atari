@@ -180,6 +180,15 @@ const std::vector<Item>& Items() {
 
       {"llamazap", "50 FRAMES A SECOND", "llamazap_50fps", Kind::kToggle, 1, 0, 1, 1, {},
        "Draws every frame in play (the original: 25). The game's speed is the same."},
+      {"llamazap", "START AT STAGE", "llamazap_stage", Kind::kChoice, 0, 0, 25, 1,
+       {"THE GAME'S OWN", "1 BEASTIES: CAMELS", "2 BEASTIES: SPACE SHEEP", "3 BEASTIES: GET YOUR GOAT",
+        "4 BEASTIES: CAMELS RETURN", "5 LLAMATRONIC", "6 AIR/SEA: CHASE", "7 AIR/SEA: SINKING FEELING",
+        "8 AIR/SEA: GO, SUB", "9 AIR/SEA: MUTANT FISH", "10 METAGALACTIC", "11 SPACE: ASTEROIDS",
+        "12 SPACE: YET ANOTHER STYLE", "13 SPACE: SCRAMBLE", "14 SPACE: ASTEROIDS II", "15 GRIDRUNNER",
+        "16 FURRED: ATOMIC", "17 FURRED: INSECTS", "18 FURRED: BRAINS", "19 FURRED: DEATH TO CUTE",
+        "20 LLAMA IN A JETPAC", "21 SON OF LLAMATRON", "22 EDGE OF TIME", "23 CONTINUAL HASSLE",
+        "24 MEET YOUR NEMESIS", "25 FINAL FIGHT"},
+       "Any level you pick in the game starts at this stage instead, then carries on in order (all 25 of them)."},
 
       {"tripatron", "LIGHT SPEED", "trip_stick_speed", Kind::kSlider, 5, 1, 12, 0.5, {},
        "How fast the left stick moves the light source."},

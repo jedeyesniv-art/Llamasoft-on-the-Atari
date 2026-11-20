@@ -2,6 +2,8 @@
 // joystick port (st::Machine::SetJagpad), and its manual check answered as a player with the manual would.
 #pragma once
 
+#include <SDL3/SDL.h>
+
 #include <cstdint>
 
 namespace st {
@@ -15,6 +17,10 @@ void Reset();
 void LoadSettings();
 // Once a frame: pad 1 (pad::Now) -> the Jaguar pad.
 void Update(st::Machine* m);
+// The power-up menu (LB held in play) is open: the game is stopped (main runs no frames).
+bool MenuOpen();
+// The menu over the picture (logical 320 x view_h), when open.
+void DrawOverlay(SDL_Renderer* r, float view_h);
 // A line over the picture, or null.
 const char* Hint(st::Machine* m);
 
