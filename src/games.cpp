@@ -226,7 +226,7 @@ std::vector<Known> KnownGames() {
   k.back().game.play_more = {12, 7, 11, 8, 10, 3, 5, 4, 6};  // the ARC logo, title, enemy guide, high scores, pause, bonus
   k.back().game.mode = input::Mode::kPhotonStorm;
   k.back().game.year = 1990;
-  // Docs: the manual as typed in by Parasite of LSD (owner 2026-11-08; Private\docs, the release's game\docs).
+  // Docs: the manual as typed in by Parasite of LSD (owner 2026-11-08; res\docs, the release's game\docs).
   k.back().game.docs_text = "PHOTONSTORM.TXT";
   k.back().game.help = {"PHOTON STORM  -  JEFF MINTER, ARC 1990", "",
                         "Blast the alien swarms in deep space.", "",
@@ -254,7 +254,7 @@ std::vector<Known> KnownGames() {
   k.back().game.mode = input::Mode::kLlamazap;
   k.back().game.falcon = true;
   k.back().game.year = 1993;
-  // Docs: the manual's English pages, typed from Atarimania's scans (owner 2026-11-20; Private\docs, the release's
+  // Docs: the manual's English pages, typed from Atarimania's scans (owner 2026-11-20; res\docs, the release's
   // game\docs).
   k.back().game.docs_text = "LLAMAZAP.TXT";
   k.back().game.help = {"LLAMAZAP  -  JEFF MINTER, FALCON030 1993", "",

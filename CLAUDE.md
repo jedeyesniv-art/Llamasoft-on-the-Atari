@@ -173,11 +173,11 @@ elease\Llamatron-<ver>-windows.zip (no game
   (worst ~5.5). Off in verify mode. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
-- Docs (2026-11-20, owner): Private\docs\LLAMAZAP.TXT = the manual's English pages 1-7 typed from Atarimania's
+- Docs (2026-11-20, owner): res\docs\LLAMAZAP.TXT = the manual's English pages 1-7 typed from Atarimania's
   scans (Private
 ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 6; no OCR engine
   here: read by eye from 2x crops). Game::docs_text, packaged like Photon Storm's (game\docs, checked). Checked
-  against the protection: p7 para 1 line 1 word 12 = "you". Kept out of git (Atari's manual).
+  against the protection: p7 para 1 line 1 word 12 = "you". In git (owner 2026-11-20).
 - Rumble (2026-11-20; rumble.cpp, setting rumble as the others): lives $527F2 (the HUD's hearts, 5 at the start,
   1 -> 0 = game over) = the heavy pulse; kills = the score digits (a word each, $4B5B0..$4B5BF) going up in play;
   tokens $4B544 + 1 = a blip (pickup), fewer = a firmer pulse (a power-up bought). Verified scripted (log "rumble:";
@@ -370,9 +370,9 @@ ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 
   back to the title = done. Every docs run shows CRT++ as CRT+ (crt::SetDocs; owner: D2 / Hardcore readers
   unreadable). Package: Extras\Trip-A-Tron manual.pdf. Gotcha fixed: a docs_via disk sent down the text path
   looped the launcher (no text -> kDocs again every frame).
-- Photon Storm's docs (owner 2026-11-08): its manual typed in by Parasite of LSD, Private\docs\PHOTONSTORM.TXT
+- Photon Storm's docs (owner 2026-11-08): its manual typed in by Parasite of LSD, res\docs\PHOTONSTORM.TXT
   (kept out of git like the Trip manual); docs_text names are also looked up in <search root>\docs (game\docs in
-  the release: package_portable.ps1 copies Private\docs\*.TXT there and checks it).
+  the release: package_portable.ps1 copies res\docs\*.TXT there and checks it; in git since 2026-11-20,\r\n  owner: preservation first). The app also looks in res\docs up from the exe (main.cpp DocsText).
 
 ## Launcher previews, rumble, pad button names (2026-11-07, owner)
 - src/preview.cpp: the picked disk's game runs unseen behind the carousel (after 0.45 s still; launcher Update

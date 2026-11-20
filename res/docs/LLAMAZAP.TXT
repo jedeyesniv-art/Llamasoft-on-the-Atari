@@ -1,0 +1,451 @@
+                          LLAMAZAP - The Manual
+
+Written by Jeff Minter & edited with translations by Darryl Still
+
+(The English part of the manual, from the scans at Atarimania. The page
+numbers are the manual's own: the game's copy protection asks for a word
+by page, paragraph, line and word.)
+
+
+                                  - 1 -
+
+SYSTEM REQUIREMENTS: any Falcon with a COLOUR display (Llamazap will not
+run in monochrome), and a new Super Funky joypad.
+
+BACKING UP THE DISK: It is a very good idea to make a copy of the game
+disk for day-to-day use and keep the original disk safe in case you spill
+a cup of tea on the disk or the dog eats it. Use the FORMAT menu function
+to format a new high-density disk and then use the COPY option to copy the
+original game disk.
+
+LOADING THE GAME: On a 1M Falcon, or a system without a hard disk drive,
+the game must be booted from the floppy disk. Put the disk in the drive and
+turn on the Falcon; the game will load and run.
+
+HARD DISK INSTALLATION: If you have a hard disk and more than 1M of
+memory, you can install Llamazap on the hard disk and run it from the
+Desktop. To do this, create a folder on your hard disk called LLAMAZAP;
+drag the STUFF folder from the game disk into this new folder; then open up
+the AUTO folder on the game disk and move the LLAMAZAP.PRG icon into the
+new folder too. You can then play the game by just opening the Llamazap
+folder and double-clicking on LLAMAZAP.PRG.
+
+USE OF RAM: If you have 4M or more, the game will load all the normally
+disk-loaded stuff into RAM.
+
+GAME DESCRIPTION: Llamazap is an action game of 25 stages in which you, as
+a completely hard and unspeakably beweaponed llama, set out to destroy
+invading alien hordes and protect innocent herbivores from molestation.
+Usually you fly a spaceship over a bi-directionally scrolling planet, but
+frequently you must leave the safety of your ship for tentacle-to-hoof
+combat with your enemies. Your aim is to battle your way through to defeat
+the last boss on the last level and thereby save the Galaxy and make it a
+safer place for ungulates everywhere. Along the way you can earn extra
+kudos by rescuing abducted livestock, saving the dolphins, and rescuing
+lost and bewildered llamas.
+
+PLAYING THE GAME: Once the game has loaded, you will see a screen
+requesting you to type in a particular word from the manual. Type the word
+in and press Return, and if you got it right the intro sequence will begin.
+If you get it wrong you get thrown back to the Desktop and you'll have to
+try again.
+
+The intro sequence displays some text which puts the game into context,
+and then displays the title artwork. You can bypass these sequences by
+pressing any fire button on the joypad.
+
+After the intro screen you'll get to the main game start screen, where you
+have two options: Start the Game and Test-Fly the Ships. Use the joypad to
+select one of the options (the selected option has a yak head next to it).
+Press a fire button to execute your chosen option.
+
+LEARNING TO FLY: If you have never played Llamazap before, it's a very
+good idea to choose the Test-Fly option. This allows you to try out any of
+the three spaceships available, and get used to the special weapons, on a
+nice peaceful planet with no nasty enemies to hassle you.
+
+
+                                  - 2 -
+
+The Test-Fly option appears with a 'Select Ship' message, and graphics of
+the three ships available, hovering near where your ship will appear. To
+select one of the three ships, press any button in a column corresponding
+to your ship choice on the keypad.
+
+Each ship is controlled in the same way. Joypad up/down moves the ship in
+the corresponding direction. To fire, hold down fire button A or C for
+continuous rapid fire. Joypad left/right will accelerate your ship to the
+left and right. If you are NOT firing, moving left and right will turn your
+ship to face the way you are going. If you keep firing, your ship will stay
+pointed in the same direction but you'll still accelerate, so you can, for
+example, fly backwards, firing at an enemy advancing towards you whilst
+retreating from it. This is a key Llamazap technique which you should
+practise in Test-Flight until you're comfortable with it. It's easier to do
+than it is to describe, so practise it before you begin the game for real.
+You'll need it for the first Mutant Camels sequence.
+
+Fly around a bit, learning about turning and firing. When you are
+comfortable with that, try holding down Button B whilst you manoeuvre. The
+B button acts as a boost button, doubling your flight speed for as long as
+it is held down. Boost is useful to get to that last enemy away on the
+other side of the planet, or to outrun some hostile meanie. Take care with
+Boost in a crowded situation, though, as it can make you too fast!
+
+USE OF WEAPONS: Each ship has a whole bundle of extra weapons and
+power-ups available to increase performance and killing-power. In
+Test-Flight mode, all these extras are available for you to experiment
+with. If you look at the bottom-right of the screen, you will notice a
+matrix of icons. Notice that they are laid out in the same way as the keys
+on the keypad. These icons correspond to the keys one to nine on the
+keypad; to select a powerup, press the corresponding joypad key.
+
+Many of these powerups are progressive: that is, they can be applied to
+your ship more than once. For instance, the main weapon of Ship Two can be
+powered up two times, from single bullets to three-way to five-way spread.
+If you have reached the limit of such a power-up, it will turn flashing
+blue to show it is unavailable. Some options are unavailable with a new
+ship: you cannot use the Speed Down function until you have used at least
+one Speed Up; you cannot buy an Orb Weapon if you do not have an Orb!
+
+Each ship has a different set of powerup options. Use Test-Flight mode to
+try them all out. Practise targets are provided to let you assess the
+weaponry. The options, numbered one to nine in the same order as the keypad
+buttons, are as follows:
+
+ONE: Change Ships. Selecting this brings back the Select Ship mode,
+allowing you to change to a different ship at any time in the game. Select
+your new ship using the keypad columns as usual.
+
+TWO: Speed Up. Increases the top speed of your spaceship.
+
+THREE: Speed Down. Decreases your top speed.
+
+FOUR: Increase Main Weapon Power. Makes your main spaceship weapon more
+effective.
+
+FIVE: Use Special Weapon. Triggers the special weapon for your ship. Each
+ship has a unique and devastating weapon useful in emergencies.
+
+SIX: Auxiliary Weapon. Ships one and two get an Orb with this powerup;
+ship three receives an orbiting shield, up to a maximum of four.
+
+SEVEN: Restore Shield. Restores the shield of the current ship to maximum.
+
+EIGHT: Auxiliary Powerup. Ships one and two get firepower for their Orbs;
+ship three gets an unarmed Orb.
+
+NINE: Insurance. If you buy Insurance, when you subsequently lose a life,
+your new ship will keep all the weapons and goodies you had so
+painstakingly accumulated.
+
+
+                                  - 3 -
+
+USE OF THE ORB: The Orb is indestructible and will try to hover near the
+front of your ship. If you hold down the Fire button, The Orb maintains a
+static position with respect to your ship. You can manoeuvre to position
+The Orb and then hold down FIRE to lock it in place. Using this technique
+enables you to hold The Orb out in front of your ship and rub it all over
+an enemy (a particularly effective technique against heavily shielded
+bosses) or hold it above or below your ship to shield you from attack. The
+Orbs of the first two ships can be powered-up with their own weapons for
+devastating kill-power.
+
+POWERUP TOKENS: In Test-Flight, all the powerups are available constantly.
+In the real game, you have to earn them, and for this you need powerup
+tokens. In play, killing some enemies causes them to release a square
+token. This is marked with either a camel or an S, and if you pick it up
+something wonderful happens. S-tokens trigger a free use of your ship's
+Special Weapon. Each Camel token makes available one new Power-Up icon in
+the matrix. You can save up to twelve powerup tokens. When you use a
+powerup, you effectively 'buy' that powerup for an equivalent number of
+stored tokens. If you have twelve tokens saved, you will see 'One-Up'
+flashing underneath the matrix; the next token you pick up converts the
+last three tokens into an extra life, leaving you with nine stored tokens.
+
+SHIP SHIELD: In Test-Flight the ship is indestructible, so the Shield
+Indicator is not shown. In the real game it is displayed at the lower-left
+corner of the screen. The shield indicator displays the state of your
+shield; if it's green and at the top of the gauge your shields are fine;
+if it's red and near the bottom, better use the Restore Shield powerup or
+expect to lose a life!
+
+Your shield is damaged by collisions with enemies and their shots.
+Obviously, you should try to avoid this.
+
+BONUSES: All the levels of the game contain opportunities to earn special
+bonuses for good play. For example, on the Interstellar Space Sheep level,
+bonuses are earned by preventing the enemies from mutating your sheep. At
+the end of a level, bonuses are tallied and multiplied by a Bonus
+Multiplier. The better you played during the level, the higher the Bonus
+Multiplier.
+
+LIVES: You begin the game with five lives. Extra lives are obtained during
+gameplay by collecting enough Power-Up tokens to get a One-Up.
+
+TRANSITION LEVELS: Every fifth level is designated a Transition Level. For
+these levels, llama leaves the ship to do individual combat in a variety of
+game challenges. Save up One-Ups so you have plenty of lives for these
+levels, as extra lives cannot be obtained during a Transition Level. The
+controls for each Transition Level are displayed before the level begins.
+
+WINNING THE GAME: The game is won when you destroy the last boss alien in
+Level Five Section Five. You are awarded an incremental bonus for each life
+remaining in store when you won, and from then on, you will have the option
+to play a more challenging game.
+
+HIGH SCORES: Llamazap maintains a record on disk of the five best scores.
+This record is saved to the STUFF folder. If you are running the game from
+a floppy disk, ensure that the Write-Protect tab of the disk is off (no
+hole) to allow the scores to be written to disk.
+
+PLAYER NAMES AND PROGRESS: When you select the Start Game option, you are
+prompted to choose a player name from a table of five names. You can change
+any of these names to your own. To do this, move the yak's head to the name
+you want to erase and press Option on the keypad. You will be asked to
+enter a name; do so and press Return. Your name is now placed on the player
+names menu and saved to disk. During play, each time you successfully
+complete a Transition Level, one level of progress is credited to your
+name. When you subsequently select your name to start a game, you will have
+the option to start play directly after the last Transition Level you
+completed.
+
+
+                                  - 4 -
+
+CONVENIENCE CONTROLS: During gameplay the following controls are provided
+for your convenience, comfort, and to enable you to go to the toilet
+without getting blown up.
+
+PAUSE: pauses the game, oddly enough. While the game is paused, you can
+alter the volume of the music by pressing up/down on the joypad. You can
+control the volume of the sound effects by holding down the A firebutton
+and pressing up/down on the joypad. A sample sound effect is played while
+you are adjusting the FX volume. The current volume preferences are saved
+to disk along with the high scores.
+
+ESC: If you press ESC on the keyboard during gameplay, the game is aborted
+and you are returned to the game start menu. If you press ESC during the
+intro sequence or title/menu pages, you will quit the game and return to
+the Atari desktop.
+
+
+                          LLAMAZAP Strategy Guide
+
+The main task in the horizontally-scrolling sections is to figure which are
+the key aliens to take out, and then figure out the best way to zap them.
+The following level strategies should help you do this.
+
+The best all-round ship for beginners is the ship selected off the
+right-hand column on the controller. This ship isn't too frisky, carries a
+strong shield and fires penetrative bullets from the outset. However, it is
+worth remembering that the ships that are harder to fly yield more points
+per enemy shot. For example, shooting an enemy with the flamethrower ship
+yields 16x as many points as shooting the same enemy with the beginner's
+ship.
+
+ATTACK OF THE MUTANT CAMELS: Position yourself vertically just below the
+camels' heads and advance firing shots through the camels' bodies. Ship
+Three's penetrative bullets should make meat of the beasts in short order.
+Back away still firing when they jump and get close again when they land
+again. Skilful players can shoot bullets (especially the shielded one out
+of the camel's mouth) to get extra powerup tokens.
+
+INTERSTELLAR SPACE SHEEP: Go straight for the generators on the planet
+surfaces. Taking these out prevents any more killer sheep being made, so
+you get less hassle during play and a nice fat bonus at the end. When the
+sky flashes and you hear a bleat, a new killer has been made, so watch the
+scanner for incoming killer sheep.
+
+GET YOUR GOAT: With Ship Three powered up to the three-way spread, you can
+take the saucers from the front. Hang in front of the saucer; your
+penetrative shots will slice the shielded bullets and zap the saucers.
+Watch out for leaping goat-creatures jumping up off the planet. If you have
+a ship without penetrative bullets, take the saucers from behind:
+projectiles fired that way aren't shielded.
+
+RETURN OF THE MUTANT CAMELS: More camels. Strategy as Level One, except
+it's even more important to back off while they are jumping. Use Turbo to
+back off fast enough to get out of range of the homers. If you get forced
+back against the flame, dodge underneath the camel when it's jumping then
+nip underneath. Fly right around the planet to confront the beast as it
+emerges from the other side of the flame generators.
+
+LLAMATRONIC: Llamatron. You know the score. If you make your way to the
+bottom-left corner of the arena, you can hang there pretty safe just
+picking off cows and getting in shots at the generators as they pass by.
+Pick up the red bullet powerups: you can kill the generators easily with
+these, they're phage bullets that stick to the enemy!
+
+CHASE AND DESTROY: Use Turbo to fly at top speed to the vicinity of the
+enemy plane. Come out of Turbo to attack him. Tackle him low on the screen
+so the ejecting pilot doesn't go off the top of the screen. If you collect
+pilots diligently you should get a few One-Ups on this level. If you're
+getting bashed, use Full Shield power-up.
+
+
+                                  - 5 -
+
+THAT SINKING FEELING: Alternate between picking off ships and rescuing the
+dolphins. You get up to eight thousand points for each foiled abduction so
+it's well worth doing. If you are using an Orb, you can just hold this
+below you and rub it all over the ships to kill them quickly. Otherwise,
+just find the right level where you can shoot off all the guns, then hang
+there and sink the ship; then move on quickly to the next one without
+moving up or down and keep firing. You can finish the level very quickly
+this way, but you don't get much dolphin-rescue bonus.
+
+GO, SUB: Try to pick off the submarines when they are high on the screen
+as the Nuke pod has further to fall and you have more time to get it. Ship
+Three's rotating orbital doobries are useful here to shield you from the
+streams of mines the little boats drop on you. Keep an eye on the scanner
+and when the boats get near, go deep: a lot of mines explode before they
+reach bottom. A good player can get more One-Ups here.
+
+GIANT MUTANT FISH FROM HELL: Get the jellyfish as fast as you can: this
+level is completely underwater, so you can't outrun Baiters. If you have
+orbitals, watch out for triggering Electric Eels accidentally: they lunge
+for you and take several shots to kill. You can outrun them if you use
+Turbo. You can get a lot of powerups and One-Ups if you rescue the dolphins
+instead of killing them: if you approach them carefully they will stop
+bombing and allow you to collect them.
+
+METAGALACTIC: Metagalactic Llamas level. Have your finger on Fire B so you
+can jump if necessary. The edge of the screen is a good place to be, keep
+the force field high and bounce your shots off the edge and back around to
+cover the entire screen. When spiders land, bring the force field low to
+bounce shots down onto the ground and zap them. Use the screen wrap: if
+something is getting too close wander off screen, bring down the
+forcefield and zap him from the other side. You can get an increasing bonus
+here by shooting spiders BEFORE they land on the ground. Protect your
+goats!
+
+ASTEROIDS: Blast the rocks and mop up strays promptly so you're not around
+when the Baiters come. The little saucers are more of a nuisance than a
+serious threat; pick them off to get a higher bonus at the end of the
+level. Use Turbo to chase down the last few strays. Watch out for the
+arrowhead ships; getting caught at their convergence is not good for your
+health. I usually change to Ship Two on this level, with the main weapon
+powered up to three-way and the faster speed it's better at mopping up
+stray asteroids, and it's useful on later levels too.
+
+YETANOTHERGAMESTYLE: Quite straightforward; pause in your firing at the
+start of each wave of attackers as there's often a floating llama to
+collect. An Orb held below you when the rockets come up from the bottom is
+useful. Learn the best ways to get all the llamas: if you miss them it
+damages your bonus. Use the Orb to kill the final boss.
+
+MERRILY WE SCROLL ALONG: Learn where you can break the surface and get at
+the lost llamas to get lots of One-Ups during this level. The gigantic
+bouncing camel can't be killed: you have to go underneath at the right
+time. You can destroy the boss quickly by rubbing an orb on the ends of his
+tentacles. There is a very excellent cheat on this level which costs you
+one powerup but gets you past a lot of dangerous stuff!
+
+ASTEROIDS II: Like Asteroids, but the rocks rush you as they fragment.
+Crack a big one then back off firing to mop up the fragments, but mind you
+don't back into another one coming at you from behind!
+
+GRIDRUNNER: Listen to the rhythm of the Zapper and learn to be aware of
+where the next bolt will be, and not be there! The little bolt from the
+side doesn't harm you. You get a big end-of-level bonus here by NOT
+shooting the little goats that run across the Grid from time to time, but
+don't hang too close to the side when you destroy a snake because a goat
+may well emerge and hit you before you can get out the way. You also get a
+nice cumulative bonus for not killing goats, but it's reset if you kill
+one.
+
+
+                                  - 6 -
+
+ATOMIC: You can't kill the big atoms straight away. Look for the molecule
+with an orbiting companion, zap it and grab the little molecule with your
+ship. Take it to the nearest big atom and it'll break up, emitting
+particles and a nucleus which chases you. Line up with the enraged nucleus
+and back off using Turbo whilst letting him have it with your guns.
+
+INSECTS: Kill the first hive and dragonfly, then take out the spiders as a
+matter of priority. Wait until they drop off their webs and zap them on the
+ground, unless they are taking one of your sheep. For subsequent
+dragonflies, back away from them firing, and manoeuvre vertically so as to
+damp their oscillation so you can hold them in a continuous beam of fire.
+Beware of the spiders' webs, if you fly through one, you're history! If you
+find the right place in this level you can hunt spiders for a big bonus,
+but watch out because they can appear right above you...
+
+BRAINS: Get in as many shots as you can, then when the rotating eyeballs
+come for you, use Turbo to dodge to the other side of the brain then turn
+around for a clear shot at the naked brain. Zap them low if possible as it
+gives you more time to collect the lightbulb.
+
+DEATH TO CUTE: Get used to the periodic oscillation of each box and hang
+just outside its range spraying bullets. When the box opens and meanies
+come out, back off. Beware especially the propeller-bombs the big black
+bombs' shrapnel.
+
+CAMELID SHOWDOWN: Hover high in the corner, then when the giant flying
+camel gets close, drop down, zip across to the opposite corner and wait for
+him there. A few iterations of this should suffice. Watch out for the
+devious shots which can swing around and catch you unawares!
+
+SON OF LLAMATRON: The cow-generators move more intelligently in this level
+so the old left-corner trick no longer works. Avoid the generators and
+shoot cows until you get a red-bullets icon. These bullets are penetrative
+and stick to the enemies, a good burst will kill a generator very quickly.
+
+RETURN TO THE EDGE OF TIME: Similar tactics to first time around, but
+watch out for opening a knife bubble directly overhead: the plummeting
+knife cannot be killed. Keep the forcefield not quite at the top most of
+the time; if a floating fork emerges you can flick the forcefield high to
+get it before it drops. Zap the bovver boots quickly or they'll stomp on
+your goats. Shoot the pieces of the fragmenting diamond things before they
+hit the ground for a big bonus.
+
+YOU THOUGHT IT WAS HARD BEFORE: The intense Gridrunner experience. The
+Zapper goes more frequently. Watch out for the little spheres, which will
+fragment of their own accord even if you don't shoot them. Best to get
+underneath them and open them yourself. Concentrate on killing snakes; the
+faster you get rid of them the sooner the wave will end. Basically just
+stay cool and hang in there and you'll get through.
+
+LLAMA IN A JETPAC: I usually take out this boss's guns in the following
+order: bottom-left, top-left, top-right then bottom-right. You can hang at
+the top of the screen; it's safe up there. The large shots can be shot, so
+don't panic if you get caught low while tackling that last gun.
+
+FINAL FIGHT: Your bullets are used as reaction-mass to move you, so if you
+fire one way you move the other. If you hold down Fire, the joypad moves
+the llama and the bullets come out the opposite way. I find this a lot
+easier to grok. Learn where each enemy emerges and position yourself
+accordingly. Bounce shots off the screen edges. The final boss emerges
+after the shower of yaks' heads. He emits atoms at you, kill him and you
+get a congratulatory message saying what a hard llama you are and how
+females of 18 different species are requesting your hoof in marriage, then
+the game ends, and Master Mode is activated.
+
+
+                                  - 7 -
+
+                               SPECIAL TIPS
+
+If you are about to lose your last life, remember that you have two other
+ships, possibly unused and each with a full shield. Use the Change Ships
+icon to switch to another ship before you die.
+
+When you are doing well, take time out to buy Insurance. You can carry on
+collecting more power and weapons, comfortable in the knowledge that you'll
+keep them all in the afterlife.
+
+In general, once proficient at the scrolling wave a good player will get
+Plenty of lives in hand to use in the final five levels; those lives will
+be needed, it's hard!
+
+
+          THIS GAME IS NOT PUBLIC DOMAIN OR SHAREWARE.
+
+          IT MUST NOT BE COPIED EXCEPT FOR BACKUP PURPOSES.
+
+          WE WILL PROSECUTE ANYBODY WHO PIRATES THIS OR ANY OTHER
+          OF OUR FORTHCOMING RELEASES.
+
+          PLEASE HELP US TO SUPPORT THE FALCON.

@@ -1376,7 +1376,13 @@ disk::Bytes DocsText(const Context& c, const games::Game& g) {
       found.emplace_back(name, it->second);
       continue;
     }
-    for (const fs::path& root : games::SearchRoots()) {  // docs of our own: a docs folder (game\docs, Private\docs)
+    // Docs of our own: a docs folder (the release's game\docs; the repo's res\docs, found up from the exe).
+    std::vector<fs::path> roots = games::SearchRoots();
+    for (fs::path p = games::ExeDir(); !p.empty(); p = p.parent_path()) {
+      roots.push_back(p / "res");
+      if (p == p.parent_path()) break;
+    }
+    for (const fs::path& root : roots) {
       fs::path p = root / "docs" / name;
       if (fs::exists(p, ec)) {
         found.emplace_back(name, disk::ReadHostFile(p.string()));

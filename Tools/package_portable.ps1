@@ -52,10 +52,10 @@ function Copy-Games([string]$to) {
     # Its manual as text (X on the disks): made from Private\trip-a-tron-manual.pdf by make_trip_manual.py.
     python -P (Join-Path $repo "Tools\make_trip_manual.py") (Join-Path $repo "Private\trip-a-tron-manual.pdf") (Join-Path $to "Trip-A-Tron\MANUAL.TXT")
     if ($LASTEXITCODE) { throw "make_trip_manual.py failed (needs pdftotext and Private\trip-a-tron-manual.pdf)" }
-    # Docs found elsewhere (owner 2026-11-08: Photon Storm's manual, typed in by Parasite of LSD): Private\docs ->
+    # Docs found elsewhere (owner 2026-11-08: Photon Storm's manual, typed in by Parasite of LSD): res\docs ->
     # game\docs, where the app looks for a game's docs_text when its disk doesn't have it.
     New-Item -ItemType Directory -Force (Join-Path $to "docs") | Out-Null
-    Copy-Item (Join-Path $repo "Private\docs\*.TXT") (Join-Path $to "docs")
+    Copy-Item (Join-Path $repo "res\docs\*.TXT") (Join-Path $to "docs")
     # -LiteralPath: the download's name has [brackets], which -Path takes as a wildcard (and copies nothing).
     Copy-Item -LiteralPath $rmc.FullName -Destination (Join-Path $to "Revenge of the Mutant Camels (1MB STE).stx")
     # The TT Megamix (owner 2026-11-01: include it, "a great historic artefact"): its disk holds only Revenge.
