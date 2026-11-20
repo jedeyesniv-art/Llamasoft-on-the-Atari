@@ -142,6 +142,14 @@ void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y) {
     g_dx = g_dy = 0;
   }
   g_disp_x = disp_x, g_disp_y = disp_y, g_have_disp = true;
+  {  // now and then: how far the background slides (beyond the margin it can't: kept still)
+    static int frames = 0, max_dx = 0, max_dy = 0, still = 0;
+    max_dx = std::max(max_dx, std::abs(g_dx)), max_dy = std::max(max_dy, std::abs(g_dy));
+    if (std::abs(g_dx) > 15) ++still;
+    if (++frames % 500 == 0)
+      LOG("remaster_falcon: %d frames, background moved up to %d / %d pixels a frame, %d beyond the margin", frames,
+          max_dx, max_dy, still), max_dx = max_dy = still = 0;
+  }
   g_prev = std::move(g_cur);
   g_cur = done->second;
   g_shown_buffer = buffer;
@@ -187,16 +195,24 @@ void Draw(SDL_Renderer* r, const st::Machine& m, const SDL_FRect& view, float al
   int py0 = 0, py1 = 0;
   PlayfieldRows(m, &py0, &py1);
   const auto& lines = m.CleanLines();
+  // Down: the display went dy down, so the picture was (1 - alpha) dy lower. The run drawn unslid first: the row
+  // the slide uncovers at its edge shows what is next to it (never more than a pixel or two).
+  const float down = (1 - alpha) * float(g_dy);
   for (int y = 0; y < h;) {
     int e = y + 1;
     while (e < h && lines[size_t(e)] == lines[size_t(y)]) ++e;
-    float s = lines[size_t(y)] ? -shift : 0;  // content drawn s pixels to the right
+    const bool slid = lines[size_t(y)] != 0;
+    float s = slid ? -shift : 0;  // content drawn s pixels to the right
     float k = std::floor(s), frac = s - k;
     SDL_FRect src{float(margin) - k, float(y), float(w + 1), float(e - y)};
     src.x = std::clamp(src.x, 0.0f, float(cw - w - 1));
     SDL_FRect dst{std::round(frac * kScale), float(y * kScale), float((w + 1) * kScale), float((e - y) * kScale)};
     SDL_Rect clip{0, y * kScale, W, (e - y) * kScale};
     SDL_SetRenderClipRect(r, &clip);
+    if (slid && down != 0) {
+      SDL_RenderTexture(r, g_clean, &src, &dst);
+      dst.y += std::round(down * kScale);
+    }
     SDL_RenderTexture(r, g_clean, &src, &dst);
     y = e;
   }
@@ -267,6 +283,7 @@ void ComposeSoftware(const st::Machine& m, std::vector<uint32_t>* out) {
 
 void LogFrame() {
   LOG("remaster_falcon: %zu items, display at (%d, %d), moved (%d, %d)", g_cur.size(), g_disp_x, g_disp_y, g_dx, g_dy);
+  if (SDL_getenv("LLAMAZAP_ITEMS") == nullptr) return;
   for (size_t i = 0; i < g_cur.size() && i < 40; ++i) {
     const Item& it = g_cur[i];
     LOG("  %s key %012llX at (%.0f, %.0f) image %016llX%s", it.dot ? "dot" : "sprite", (unsigned long long)it.key, it.x,

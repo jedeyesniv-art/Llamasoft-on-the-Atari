@@ -114,7 +114,7 @@ elease\Llamatron-<ver>-windows.zip (no game
   hscroll, offset each; multi-band, parallax). Beasties: the single HUD split. Plan if pursued: background = buf0
   through the same (interpolated) scroll; sprites / dots captured at their routines' callers; a Falcon (8-plane,
   256-colour, 384 x 240) path in remaster.cpp; pilot = $11FE4 stages. Open: the 640-wide wrap with a 384 display.
-- Remaster pilot (2026-11-20; the $11FE4 stages: 1-4, 6-9, 19): src/remaster_falcon.cpp (own compositor, not
+- Remaster (2026-11-20; pilot on the $11FE4 stages, then every stage type: capture in play whenever InLevel): src/remaster_falcon.cpp (own compositor, not
   remaster.cpp: that one is ST-shaped) + llamazap.cpp hooks. Every sprite goes through one of three clr.l $51338:
   $14848 (screen x: d0 left, d4 right, d1 middle line in the buffer, a0 image (+2 w, +4 h), d2 planes, $51346
   variant), $146CC (its twin), $145B2 (from $1457C / $1458A: d0 already the buffer's x - the beams, formation
@@ -131,8 +131,13 @@ elease\Llamatron-<ver>-windows.zip (no game
   must equal --shot of the same run; checked on all 9 stages: identical but sprites cut by the left edge (the game
   clips in 16-pixel steps through the wrap; ours are whole) and a dot or two. Runs with / without capture differ
   (the main loop is quicker without drawing: things timed by drawn frames shift a frame) - compare in one run.
-  LLAMAZAP_IMAGES=1 logs each decoded image. Not done: other stage types, run-ahead, vertical slide (dy), hitch
-  on new images, the stray dots. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  LLAMAZAP_IMAGES=1 logs each decoded image. All 10 stage types verified the same way (every stage, two frames
+  each): identical but left-edge clipping, a stray dot or HUD digit (stages with the score at the top draw it as
+  sprites: captured, fixed on the screen). Vertical slide (dy, Llama in a Jetpac; Son of Llamatron follows the
+  ship): the playfield run drawn unslid then slid, so the uncovered edge row shows its neighbour. Images decoded in
+  one copy of the machine per batch (~1 ms a batch). Log every 500 frames: the background's largest move a frame
+  (Air/Sea 8, Jetpac 3 down: inside the 16-pixel margin). Not done: run-ahead, the stray dots, left-edge clipping
+  as the game does it (ours: whole sprites). Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

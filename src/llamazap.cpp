@@ -479,27 +479,26 @@ void OnSwap(st::Machine& m) {  // was: cmpi.l #$2F9A6,$2F9D6 ; bne $14032
 }
 
 // The queued images: each call run in a copy of the machine (between frames: Musashi isn't re-entrant).
-bool RunCopy(st::Machine* m, const Queued& q, uint32_t buffer, uint8_t fill, int x, int top, std::vector<uint8_t>* out) {
-  auto fork = std::make_unique<st::Machine>(*m);
-  fork->sandbox = true;
-  fork->ahead = false;
+// One call in `fork` (a copy of the machine made once for a batch: a call changes nothing it needs but the
+// buffers, which are filled again first).
+bool RunCopy(st::Machine* m, st::Machine* fork, const Queued& q, uint8_t fill, int x, int top, std::vector<uint8_t>* out) {
   uint8_t* ram = fork->Ram();
   // Both shown buffers filled: it draws into the one its own state says (read back from whichever changed).
   const uint32_t bufs[2] = {Get32(*m, kBuffers + 4), Get32(*m, kBuffers + 8)};
   for (uint32_t b : bufs) std::memset(ram + b, fill, kBufferBytes);
-  (void)buffer;
   const uint32_t magic = Get32(*m, kBuffers) + kBufferBytes - 16, sp = (q.regs[15] & 0xFFFFFE) - 512;
   ram[magic] = 0x4A, ram[magic + 1] = 0xFC;
-  bool done = false;
-  fork->AddHook(magic, [&done, magic](st::Machine&) {
+  static bool done = false;
+  done = false;
+  fork->AddHook(magic, [magic](st::Machine&) {
     done = true;
     cpu::Set(cpu::PC, magic);
     cpu::EndSlice();
   });
   for (int k = 0; k < 4; ++k) ram[sp + k] = uint8_t(magic >> (24 - 8 * k));
-  Put16(fork.get(), kVariant, q.variant);
+  Put16(fork, kVariant, q.variant);
   std::vector<uint8_t> context = cpu::SaveContext();
-  cpu::SetMachine(fork.get());
+  cpu::SetMachine(fork);
   cpu::Set(cpu::SR, 0x2700);
   for (int r = 0; r < 15; ++r) cpu::Set(cpu::Reg(r), q.regs[r]);
   const int16_t d0 = int16_t(q.regs[0]), d4 = int16_t(q.regs[4]);
@@ -533,6 +532,7 @@ void DecodeQueued(st::Machine* m) {
   if (buffer < 0x10000 || buffer + kBufferBytes > st::kFalconRam) return g_queue.clear();
   static int total = 0;
   uint64_t t0 = SDL_GetTicksNS();
+  std::unique_ptr<st::Machine> fork;
   for (const Queued& q : g_queue) {
     const int16_t d0 = int16_t(q.regs[0]), d4 = int16_t(q.regs[4]);
     const int16_t w = q.buffer_x ? int16_t(Get16(*m, q.regs[8] + 2)) : int16_t(d4 - d0), h = int16_t(Get16(*m, q.regs[8] + 4));
@@ -540,7 +540,12 @@ void DecodeQueued(st::Machine* m) {
     const int x = 96 + (q.buffer_x ? ((d0 - sx) & 15) : (d0 & 15)), top = sy + 40;
     std::vector<uint8_t> a, b;
     remaster_falcon::Image im;
-    if (w > 0 && h > 0 && h < 250 && RunCopy(m, q, buffer, 0, x, top, &a) && RunCopy(m, q, buffer, 0xFF, x, top, &b)) {
+    if (!fork) {
+      fork = std::make_unique<st::Machine>(*m);
+      fork->sandbox = true;
+      fork->ahead = false;
+    }
+    if (w > 0 && h > 0 && h < 250 && RunCopy(m, fork.get(), q, 0, x, top, &a) && RunCopy(m, fork.get(), q, 0xFF, x, top, &b)) {
       // The rectangle it may have drawn into, in the buffer: 16 pixels more each side.
       const int bx0 = x + sx - 16, bx1 = x + sx + w + 16;
       int x0 = 1 << 30, x1 = -1, y0 = 1 << 30, y1 = -1;
@@ -675,8 +680,8 @@ void Update(st::Machine* m) {
     Put16(m, kSwap, 0x4AFC);
     m->AddHook(kSwap, OnSwap);
   }
-  // Capturing on the stages done (the pilot: $11FE4), in play, the remaster on.
-  const bool capture = remaster::Enabled() && !games::Stock() && InLevel(*m) && Get32(*m, kVblRoutine) == 0x11FE4;
+  // Capturing in play on every stage (each stage type verified: CLAUDE.md), the remaster on.
+  const bool capture = remaster::Enabled() && !games::Stock() && InLevel(*m);
   remaster_falcon::SetCapturing(capture);
   if (capture) {
     uint32_t b0 = Get32(*m, kBuffers), b1 = Get32(*m, kBuffers + 4), b2 = Get32(*m, kBuffers + 8);
