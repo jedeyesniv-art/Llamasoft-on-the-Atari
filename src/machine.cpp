@@ -358,12 +358,12 @@ bool Machine::RunFrame() {
     AciaService(cycles_done_);
     if (!latched && cycles_done_ >= display_start) latch(), latched = true;
     while (line_ < lines && line_end(line_) <= cycles_done_) {
-      if (!sandbox) RenderLine(line_);
+      if (!sandbox || draw_in_sandbox) RenderLine(line_);
       ++line_;
       DisplayLineEnd();
     }
   }
-  while (!sandbox && line_ < lines) RenderLine(line_++);  // (the program ended mid-frame)
+  while ((!sandbox || draw_in_sandbox) && line_ < lines) RenderLine(line_++);  // (the program ended mid-frame)
   if (!falcon_) latch();  // VBL: the shifter latches the new screen address
   vbl_pending_ = true;
   UpdateIrq();

@@ -38,14 +38,19 @@ void Add(const Item& item);
 void EndFrame(uint32_t buffer);  // the main loop finished drawing into `buffer` (shown from the next VBL)
 bool HaveImage(uint64_t id);
 void SetImage(uint64_t id, Image image);
-// After every RunFrame: the buffer shown (its first line's address in it) and where the display started in it
-// (x: pixels from the line's start incl. the fine scroll, y: lines).
-void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y);
+// Run-ahead: while a copy of the machine runs ahead, its hooks capture into a list of its own (a copy of the
+// machine's when it starts).
+void BeginAhead();
+void EndAhead();
+// After every RunFrame: the picture to show - from `m`, the machine or (ahead) its run-ahead copy: the buffer shown
+// (its first line's address in it), where the display started in it (x: pixels from the line's start incl. the
+// fine scroll, y: lines). Its clean frame and palette are kept for Draw.
+void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y, bool ahead = false);
 bool Active();  // something to draw this frame (capturing, the remaster on, a frame captured)
 // The picture into `view` (logical coordinates): positions `alpha` (0..1) of the way from the frame shown before.
-void Draw(SDL_Renderer* r, const st::Machine& m, const SDL_FRect& view, float alpha);
+void Draw(SDL_Renderer* r, const SDL_FRect& view, float alpha);
 // Tests: this frame composed at 1x, whole pixels, alpha 1 (should equal the game's own picture).
-void ComposeSoftware(const st::Machine& m, std::vector<uint32_t>* out);
+void ComposeSoftware(std::vector<uint32_t>* out);
 void LogFrame();  // tests: this frame's items
 void Shutdown();
 

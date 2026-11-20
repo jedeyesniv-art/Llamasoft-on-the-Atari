@@ -144,6 +144,7 @@ class Machine {
   bool sandbox = false;
   // A run-ahead copy (remaster.h): a sandbox whose drawing is still captured.
   bool ahead = false;
+  bool draw_in_sandbox = false;  // a sandbox that still draws its picture (the Falcon remaster's run-ahead copy)
 
  private:
   static constexpr uint32_t kBasepage = 0x10000, kTextBase = kBasepage + 0x100;

@@ -136,8 +136,15 @@ elease\Llamatron-<ver>-windows.zip (no game
   sprites: captured, fixed on the screen). Vertical slide (dy, Llama in a Jetpac; Son of Llamatron follows the
   ship): the playfield run drawn unslid then slid, so the uncovered edge row shows its neighbour. Images decoded in
   one copy of the machine per batch (~1 ms a batch). Log every 500 frames: the background's largest move a frame
-  (Air/Sea 8, Jetpac 3 down: inside the 16-pixel margin). Not done: run-ahead, the stray dots, left-edge clipping
-  as the game does it (ours: whole sprites). Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  (Air/Sea 8, Jetpac 3 down: inside the 16-pixel margin). Not done: the stray dots, left-edge clipping as the
+  game does it (ours: whole sprites).
+- Run-ahead (2026-11-20; setting remaster_ahead / F7 as the ST ports, here = frames run ahead): llamazap::AfterFrame
+  copies the machine (Machine::draw_in_sandbox: the copy draws its picture - the background must match the sprites),
+  runs it N frames with the controls held, its hooks capturing into remaster_falcon's second list (BeginAhead /
+  EndAhead), and shows its newest frame (picture + items; FrameShown(..., ahead) snapshots the clean frame and
+  palette); back to the machine's own if the copy leaves play. Sound stays the machine's. Measured (stick pushed at
+  frame 3200, the ship's y in the frames shown): 0 -> moves at 3203, 1 -> 3202, 2 -> 3201. Cost ~3 ms a frame at 2
+  (worst ~5.5). Off in verify mode. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

@@ -980,7 +980,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       if (auto ms = opt.mshots.find(frame); ms != opt.mshots.end() && remaster_falcon::Active()) {
         std::vector<uint32_t> px;  // the Falcon remaster's frame composed in software (tests)
         remaster_falcon::LogFrame();
-        remaster_falcon::ComposeSoftware(machine, &px);
+        remaster_falcon::ComposeSoftware(&px);
         if (SDL_Surface* s = SDL_CreateSurfaceFrom(machine.FrameWidth(), machine.FrameHeight(), SDL_PIXELFORMAT_ARGB8888,
                                                   px.data(), machine.FrameWidth() * 4)) {
           SDL_SaveBMP(s, ms->second.c_str());
@@ -1053,7 +1053,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         else if (lock_k > 0) alpha = float((vsyncs + lock_k - 1) % lock_k) / float(lock_k);
         else if (lock_k == 0) alpha = float(double(SDL_GetTicksNS() - start) / 1e9 * machine.FrameHz() - frames_due);
         if (menu::IsOpen() || llamazap::MenuOpen()) alpha = 1;  // suspended: the last frame, still
-        remaster_falcon::Draw(renderer, machine, view, alpha);
+        remaster_falcon::Draw(renderer, view, alpha);
       } else if (remaster::Active() && shown == texture) {
         // Between the last two frames: how far the clock (or the vsyncs) is into the frame shown last.
         float alpha = 1;

@@ -712,19 +712,63 @@ void Update(st::Machine* m) {
   }
 }
 
+namespace {
+// The buffer `m` showed its last frame from and where the display started in it; false: not one of the two.
+bool Shown(const st::Machine& m, uint32_t* buffer, int* x, int* y) {
+  const uint32_t base = m.FrameBase();
+  for (int i = 1; i < 3; ++i) {
+    uint32_t b = Get32(m, kBuffers + 4 * uint32_t(i));
+    if (base >= b && base < b + kBufferBytes) {
+      const uint32_t off = base - b;
+      *buffer = b, *x = int(off % 640) + m.FrameHscroll(), *y = int(off / 640);
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
+// Run-ahead (setting remaster_ahead, F7: 0..3 frames; remaster.h): a copy of the machine runs that many frames on
+// with the controls held, drawing its picture too (Machine::draw_in_sandbox), its hooks capturing into a list of its
+// own; its newest frame is what is shown (picture and items together: the background has to match the sprites).
+// The game's sound and everything else stay the machine's. Cost: the copy (~4 MB) and the frames run.
 void AfterFrame(st::Machine* m) {
   DecodeQueued(m);
-  if (!remaster_falcon::Capturing()) return remaster_falcon::FrameShown(*m, 0, 0, 0);
-  // The buffer shown and where the display started in it.
-  const uint32_t base = m->FrameBase();
   uint32_t buffer = 0;
-  for (int i = 1; i < 3; ++i) {
-    uint32_t b = Get32(*m, kBuffers + 4 * uint32_t(i));
-    if (base >= b && base < b + kBufferBytes) buffer = b;
+  int x = 0, y = 0;
+  if (!remaster_falcon::Capturing() || !Shown(*m, &buffer, &x, &y)) return remaster_falcon::FrameShown(*m, 0, 0, 0);
+  const int frames = remaster::Ahead();
+  if (frames > 0 && !g_verify) {
+    const uint64_t t0 = SDL_GetTicksNS();
+    struct Timing {
+      uint64_t ns = 0, worst = 0;
+      int n = 0;
+    };
+    static Timing timing;
+    static std::unique_ptr<st::Machine> fork;
+    if (!fork) fork = std::make_unique<st::Machine>(*m);
+    else *fork = *m;
+    fork->sandbox = fork->ahead = fork->draw_in_sandbox = true;
+    remaster_falcon::BeginAhead();
+    std::vector<uint8_t> context = cpu::SaveContext();
+    cpu::SetMachine(fork.get());
+    bool ok = true;
+    for (int i = 0; i < frames && ok; ++i) ok = fork->RunFrame();
+    cpu::SetMachine(m);
+    cpu::RestoreContext(context);
+    remaster_falcon::EndAhead();
+    DecodeQueued(fork.get());  // what the copy met first: shown this frame
+    cpu::SetMachine(m);
+    const uint64_t ns = SDL_GetTicksNS() - t0;
+    timing.ns += ns, timing.worst = std::max(timing.worst, ns);
+    if (++timing.n == 500)
+      LOG("llamazap remaster: run-ahead %d frames, %.2f ms a frame (worst %.2f)", frames, timing.ns / 1e6 / timing.n,
+          timing.worst / 1e6), timing = Timing{};
+    uint32_t fb = 0;
+    int fx = 0, fy = 0;
+    if (ok && InLevel(*fork) && Shown(*fork, &fb, &fx, &fy)) return remaster_falcon::FrameShown(*fork, fb, fx, fy, true);
   }
-  if (!buffer) return remaster_falcon::FrameShown(*m, 0, 0, 0);
-  const uint32_t off = base - buffer;
-  remaster_falcon::FrameShown(*m, buffer, int(off % 640) + m->FrameHscroll(), int(off / 640));
+  remaster_falcon::FrameShown(*m, buffer, x, y);
 }
 
 const char* Hint(st::Machine*) { return nullptr; }

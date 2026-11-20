@@ -17,8 +17,16 @@ constexpr int kScale = 4;
 constexpr float kTeleport = 40;  // moved further than this between two frames: drawn where it is, not slid
 
 bool g_capturing = false;
-std::vector<Item> g_drawing;                     // the main loop's list so far
-std::map<uint32_t, std::vector<Item>> g_done;    // per buffer: the list last drawn into it
+struct Capture {
+  std::vector<Item> drawing;                  // the main loop's list so far
+  std::map<uint32_t, std::vector<Item>> done;  // per buffer: the list last drawn into it
+};
+Capture g_real, g_fork;  // the machine's, the run-ahead copy's
+Capture* g_cap = &g_real;
+// The picture shown (the machine's or the run-ahead copy's): its clean frame, which lines are the playfield's.
+std::vector<uint32_t> g_snap;
+std::vector<uint8_t> g_snap_lines;
+int g_snap_w = 0, g_snap_h = 0, g_snap_margin = 0;
 std::vector<Item> g_cur, g_prev;                 // the frames shown: now and before
 std::vector<int> g_match;                        // per item of g_cur: its item in g_prev (-1: new / jumped)
 bool g_have = false;                             // g_cur is a captured frame
@@ -83,8 +91,8 @@ SDL_Texture* TextureFor(SDL_Renderer* r, uint64_t id) {
 }
 
 // The playfield: the first run of lines from the clean source.
-void PlayfieldRows(const st::Machine& m, int* y0, int* y1) {
-  const auto& lines = m.CleanLines();
+void PlayfieldRows(int* y0, int* y1) {
+  const auto& lines = g_snap_lines;
   *y0 = *y1 = 0;
   int y = 0, n = int(lines.size());
   while (y < n && !lines[size_t(y)]) ++y;
@@ -97,7 +105,8 @@ void PlayfieldRows(const st::Machine& m, int* y0, int* y1) {
 
 void Start() {
   g_capturing = false, g_have = false, g_have_disp = false;
-  g_drawing.clear(), g_done.clear(), g_cur.clear(), g_prev.clear(), g_match.clear();
+  g_real = g_fork = Capture{}, g_cap = &g_real;
+  g_cur.clear(), g_prev.clear(), g_match.clear();
   g_images.clear();
   for (auto& [id, b] : g_baked)
     if (b.tex) SDL_DestroyTexture(b.tex);
@@ -105,17 +114,20 @@ void Start() {
 }
 
 void SetCapturing(bool on) {
-  if (!on && g_capturing) g_have = false, g_drawing.clear(), g_done.clear();
+  if (!on && g_capturing) g_have = false, g_real = g_fork = Capture{};
   g_capturing = on;
 }
 bool Capturing() { return g_capturing; }
 
-void Add(const Item& item) { g_drawing.push_back(item); }
+void Add(const Item& item) { g_cap->drawing.push_back(item); }
 
 void EndFrame(uint32_t buffer) {
-  g_done[buffer] = std::move(g_drawing);
-  g_drawing.clear();
+  g_cap->done[buffer] = std::move(g_cap->drawing);
+  g_cap->drawing.clear();
 }
+
+void BeginAhead() { g_fork = g_real, g_cap = &g_fork; }
+void EndAhead() { g_cap = &g_real; }
 
 bool HaveImage(uint64_t id) { return g_images.count(id) != 0; }
 void SetImage(uint64_t id, Image image) {
@@ -124,12 +136,15 @@ void SetImage(uint64_t id, Image image) {
   if (b != g_baked.end()) b->second.pal = 0;  // (made again)
 }
 
-void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y) {
+void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y, bool ahead) {
   for (int i = 0; i < 256; ++i) g_pal[i] = m.FalconColour(i);
   g_pal_hash = Hash(g_pal, 256);
   g_clean_dirty = true;
-  auto done = g_done.find(buffer);
-  if (!g_capturing || done == g_done.end()) {
+  g_snap = m.CleanFrame(), g_snap_lines = m.CleanLines();
+  g_snap_w = m.FrameWidth(), g_snap_h = m.FrameHeight(), g_snap_margin = m.CleanMargin() & ~15;
+  const Capture& cap = ahead ? g_fork : g_real;
+  auto done = cap.done.find(buffer);
+  if (!g_capturing || done == cap.done.end()) {
     g_have = false, g_have_disp = false;
     return;
   }
@@ -159,9 +174,9 @@ void FrameShown(const st::Machine& m, uint32_t buffer, int disp_x, int disp_y) {
 
 bool Active() { return g_capturing && g_have && remaster::Enabled(); }
 
-void Draw(SDL_Renderer* r, const st::Machine& m, const SDL_FRect& view, float alpha) {
-  const int w = m.FrameWidth(), h = m.FrameHeight(), margin = m.CleanMargin() & ~15, cw = w + 2 * margin;
-  const auto& clean = m.CleanFrame();
+void Draw(SDL_Renderer* r, const SDL_FRect& view, float alpha) {
+  const int w = g_snap_w, h = g_snap_h, margin = g_snap_margin, cw = w + 2 * margin;
+  const auto& clean = g_snap;
   if (clean.size() != size_t(cw) * size_t(h)) return;
   const int W = w * kScale, H = h * kScale;
   if (!g_target) {
@@ -193,8 +208,8 @@ void Draw(SDL_Renderer* r, const st::Machine& m, const SDL_FRect& view, float al
   // position; between frames the picture is (1 - alpha) of the move behind it), the rest as they are.
   const float shift = -(1 - alpha) * float(g_dx);  // (the display went dx right: the picture was further right)
   int py0 = 0, py1 = 0;
-  PlayfieldRows(m, &py0, &py1);
-  const auto& lines = m.CleanLines();
+  PlayfieldRows(&py0, &py1);
+  const auto& lines = g_snap_lines;
   // Down: the display went dy down, so the picture was (1 - alpha) dy lower. The run drawn unslid first: the row
   // the slide uncovers at its edge shows what is next to it (never more than a pixel or two).
   const float down = (1 - alpha) * float(g_dy);
@@ -250,16 +265,16 @@ void Draw(SDL_Renderer* r, const st::Machine& m, const SDL_FRect& view, float al
   crt::DrawPicture(r, g_target, view, float(w), float(h));
 }
 
-void ComposeSoftware(const st::Machine& m, std::vector<uint32_t>* out) {
-  const int w = m.FrameWidth(), h = m.FrameHeight(), margin = m.CleanMargin() & ~15, cw = w + 2 * margin;
-  const auto& clean = m.CleanFrame();
+void ComposeSoftware(std::vector<uint32_t>* out) {
+  const int w = g_snap_w, h = g_snap_h, margin = g_snap_margin, cw = w + 2 * margin;
+  const auto& clean = g_snap;
   out->assign(size_t(w) * size_t(h), 0xFF000000u);
   if (clean.size() != size_t(cw) * size_t(h)) return;
   for (int y = 0; y < h; ++y)
     for (int x = 0; x < w; ++x) (*out)[size_t(y) * w + x] = clean[size_t(y) * cw + x + margin];
   if (!g_have) return;
   int py0 = 0, py1 = 0;
-  PlayfieldRows(m, &py0, &py1);
+  PlayfieldRows(&py0, &py1);
   auto put = [&](int x, int y, uint32_t c) {
     if (x >= 0 && x < w && y >= py0 && y < py1) (*out)[size_t(y) * w + x] = c;
   };
