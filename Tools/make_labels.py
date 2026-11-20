@@ -24,6 +24,7 @@ LABELS = [
     ('hardcore', 'hardcore-photo.jpg', (0, 0, 1, 1), None),
     ('photonstorm', 'photonstorm-photo.jpg', (0, 0, 1, 1), None),
     ('rmctt', 'rmctt-photo.jpg', (0, 0, 1, 1), None),
+    ('llamazap', 'llamazap-photo.jpg', (0, 0, 1, 1), None),  # the Falcon game (2026-11-19)
     ('settings', 'settings-photo.jpg', (0, 0, 1, 1), None),  # the launcher's Settings disk (2026-11-03)
 ]
 # The Ink Free stand-in (owner 2026-11-01: "replace my handwritten labels so all the disks are consistent"), now
@@ -31,7 +32,7 @@ LABELS = [
 STAND_IN = {'llamatron': ['Llamatron'], 'gridrunner': ['Super', 'Gridrunner'], 'tripatron': ['Trip-A-Tron'],
             'rmc': ['Mutant', 'Camels'], 'defender2': ['Defender 2'], 'andes': ['Andes', 'Attack'],
             'hardcore': ['Hardcore'], 'photonstorm': ['Photon', 'Storm'], 'rmctt': ['Camels', 'TT Megamix'],
-            'settings': ['Settings']}
+            'llamazap': ['Llamazap'], 'settings': ['Settings']}
 # The owner's redrawn labels (2026-11-07, drawn digitally: res/labels/sheet-N.png, all on one template of 2 x 2
 # label cells between two narrow strips): which sheet, column, row. These come first; the stand-ins are left for
 # a disk with no cell here.

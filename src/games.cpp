@@ -246,6 +246,29 @@ std::vector<Known> KnownGames() {
                         "direction; left fire, right thrust. Control smart",
                         "bomb, Left Shift boost, Alt single shots. Right",
                         "Shift pauses (Space resumes, Q quits)."};
+  // Llamazap (Llamasoft 1993) for the Atari Falcon030 (st::Machine::SetFalcon): LLAMAZAP.PRG (Pack-Ice) with its
+  // data in STUFF\ on a 1.44 MB disk. The Jaguar pad on the enhanced joystick port (llamazap.cpp); music: MODs
+  // mixed by its DSP program (our mixer stands in: dsp.cpp).
+  wip("llamazap", "LLAMAZAP", "LLAMAZAP.PRG", "LLAMAZAP  -  JEFF MINTER, FALCON030 1993",
+      "Defend the beasts of the galaxy.", {0.10f, 0.10f, 0.12f, 1}, {0.95f, 0.30f, 0.65f, 1});
+  k.back().game.mode = input::Mode::kLlamazap;
+  k.back().game.falcon = true;
+  k.back().game.year = 1993;
+  k.back().game.help = {"LLAMAZAP  -  JEFF MINTER, FALCON030 1993", "",
+                        "Defend the beasts of the galaxy. (The Falcon's",
+                        "Jaguar pad: the keypad buys power-ups.)", "",
+                        "LEFT STICK / D-PAD   move",
+                        "{A} OR {RT}            fire (the pad's A)",
+                        "{X}                    fire (C)",
+                        "{B}                    jump / lock the fire angle (B)",
+                        "RIGHT STICK          keypad 1-9 as a 3 x 3 grid:",
+                        "                     power-ups; ship = the column",
+                        "R3                   keypad 5",
+                        "{Y}                    option      {START} pause",
+                        "{BACK}                 settings   ({B} there: back to the disks)", "",
+                        "The manual check: type any word, then OK.",
+                        "Keyboard: cursors, Z fire, X B, C, digits keypad,",
+                        "O option, P pause."};
   wip("hardcore", "HARDCORE", "HARDCORE.PRG", "HARDCORE  -  YAK, 1991 (UNFINISHED)",
       "Never released: Yak's unfinished blaster.", {0.30f, 0.06f, 0.06f, 1}, {0.85f, 0.85f, 0.85f, 1});
   // VBL $168F2 calls the hook at $338BA: $104EA title, $145D0 level intro, $10C82 play, $11242 paused.

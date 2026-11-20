@@ -24,12 +24,31 @@ constexpr uint32_t kRomSize = 0x1000;
 constexpr double kCpuHz = 8021247.0;     // PAL ST
 constexpr int kScreenW = 320, kScreenH = 200;
 constexpr int kMaxFrameW = 640;  // medium resolution: 640 x 200, 4 colours
+constexpr uint32_t kFalconRam = 0x400000;  // the Falcon: 4 MB
+constexpr int kFrameCapacity = kMaxFrameW * kScreenH;  // the frame buffer: also the Falcon's 384 x 240 overscan
+
+// The Jaguar pad on the Falcon's enhanced joystick port A (SetJagpad): one bit per button.
+enum : uint32_t {
+  kJagUp = 1 << 0, kJagDown = 1 << 1, kJagLeft = 1 << 2, kJagRight = 1 << 3,
+  kJagA = 1 << 4, kJagB = 1 << 5, kJagC = 1 << 6, kJagPause = 1 << 7, kJagOption = 1 << 8,
+  kJagKey0 = 1 << 9,  // .. kJagKey9 = 1 << 18 (kJagKey0 << n)
+  kJagStar = 1 << 19, kJagHash = 1 << 20,
+};
 
 // Joystick bits as the IKBD reports them.
 enum : uint8_t { kJoyUp = 1, kJoyDown = 2, kJoyLeft = 4, kJoyRight = 8, kJoyFire = 0x80 };
 
 class Machine {
  public:
+  // The Atari Falcon030 instead of the ST (Llamazap): 4 MB, a 68030 at 16 MHz (twice the ST's clock), VIDEL
+  // (Vsetmode: 256 colours, overscan), the blitter, the DSP's host port (high level), the joypad ports, the
+  // Falcon's sound calls. Before Load.
+  void SetFalcon(bool on);
+  bool Falcon() const { return falcon_; }
+  uint32_t RamSize() const { return ram_size_; }
+  // The Jaguar pad on port A (kJag... bits), every frame.
+  void SetJagpad(uint32_t bits) { jagpad_ = bits; }
+
   // Files on the game disk; saves go to `save_dir` (files written by the game shadow the disk's).
   bool Load(const disk::Program& program, std::map<std::string, disk::Bytes> files, const std::string& save_dir,
             std::string* error);
@@ -38,8 +57,8 @@ class Machine {
 
   // CPU speed as a multiple of the ST's 8 MHz (1 = original). Everything else keeps its real-time rate, so a
   // faster CPU only means the game's work is done sooner. Can change between frames.
-  void SetCpuSpeed(int k) { speed_ = std::max(1, k); }
-  int CpuSpeed() const { return speed_; }
+  void SetCpuSpeed(int k) { speed_ = std::max(1, k) * cpu_mul_; }
+  int CpuSpeed() const { return speed_ / cpu_mul_; }
   // Calm background (anti-flash): colour 0 is shown through a peak hold over the last 16 frames, then smoothed and
   // capped, so a strobing background becomes a steady glow and a flash a soft pulse. Per frame: only for programs
   // that don't change colour 0 mid-frame (Trip-A-Tron while performing).
@@ -59,6 +78,7 @@ class Machine {
   // The last finished frame, 320x200 ARGB.
   const uint32_t* Frame() const { return frame_.data(); }
   int FrameWidth() const { return frame_w_; }
+  int FrameHeight() const { return frame_h_; }  // 200 on the ST; the Falcon's mode (overscan: 240)
   uint32_t FrameBase() const { return frame_base_; }
   bool SteColours() const { return ste_colours_; }  // the screen address the last frame was shown from  // 320 (low resolution) or 640 (medium), rows FrameWidth() apart
   const uint16_t* Palette() const { return palette_; }  // the shifter's colour registers now
@@ -135,6 +155,13 @@ class Machine {
 
   // Shifter.
   void RenderLine(int y);
+  void RenderFalconLine(int y);  // VIDEL modes (Vsetmode, not ST compatible)
+  void SetVideoMode(uint16_t mode);  // Vsetmode
+  void Blit();                       // the blitter: one whole job when BUSY is set
+  uint32_t Screen() const { return ram_size_ - 0x8000; }  // TOS's screen at the top of RAM; programs below it
+  bool FalconIoRead(uint32_t a, uint8_t* v);
+  bool FalconIoWrite(uint32_t a, uint8_t v);
+  bool FalconXbios(uint32_t args, uint32_t* d0, bool* handled);
 
   // TOS.
   bool Gemdos(uint32_t args, uint32_t* d0);
@@ -182,10 +209,47 @@ class Machine {
   std::deque<std::string> search_;  // Fsfirst matches not returned yet  // the call has to wait (Cconin without a key): run the trap again
 
   std::vector<uint8_t> ram_ = std::vector<uint8_t>(kRamSize);
+  uint32_t ram_size_ = kRamSize;
+  int frame_bytes_ = 6;  // an exception's frame on the stack: SR + PC (68000), + the format word (68030: 8)
+  int cpu_mul_ = 1;      // CPU cycles per ST cycle at speed 1: 2 on the Falcon (16 MHz)
+  // The Falcon.
+  bool falcon_ = false;
+  bool videl_ = false;     // a Falcon mode is set (drawn by RenderFalconLine), not an ST-compatible one
+  uint16_t vmode_ = 0;     // Vsetmode's mode word
+  int bpp_ = 4;            // bits a pixel (1, 2, 4, 8; 16 = true colour)
+  uint8_t vbase_lo_ = 0;   // $FF820D
+  uint32_t vcount_ = 0;    // the video address counter ($FF8205/07/09: writable - split screens)
+  uint16_t line_off_ = 0;  // $FF820E: words skipped after each line
+  uint16_t line_words_ = 80;  // $FF8210: words a line
+  uint8_t hscroll_ = 0;    // $FF8265: pixels the picture is moved left (0..15)
+  std::array<uint32_t, 256> pal256_{};  // $FF9800: RRRRRRxx GGGGGGxx -------- BBBBBBxx
+  uint8_t blit_[0x40] = {};             // $FF8A00..$FF8A3F
+  uint8_t jag_select_ = 0xFF;           // $FF9203: the row the joypad ports read (active low)
+  uint32_t jagpad_ = 0;
+  uint8_t dsp_tx_[4] = {};              // $FFA204..7: the host port's transmit word
+  uint32_t dsp_ability_ = 0x4C4C;
+  // The DSP, high level (Llamazap's: a mixer of 7 sample voices - machine_falcon.inc): its memory as the XBIOS
+  // block calls load it (from $300, after Dsp_ExecProg), the voices as the host port's packets set them.
+  struct DspVoice {
+    bool on = false, fx = false;
+    double pos = 0, end = 0;          // samples into its region
+    double next = 0, next_len = 0;    // where it goes on at the end (the loop: the Amiga's way)
+    double step = 0;                  // samples an output sample
+    float left = 0, right = 0;        // 0..1
+  };
+  std::vector<uint32_t> dsp_mem_ = std::vector<uint32_t>(0x8000);
+  uint32_t dsp_load_ = 0x300;
+  int dsp_params_ = 0;                  // one-word blocks after Dsp_ExecProg: its parameters
+  std::vector<uint32_t> dsp_packet_;
+  std::array<DspVoice, 7> dsp_voice_{};
+  bool dsp_running_ = false;
+  void DspPacket();
+  void MixDsp(size_t from);
+  int DspByte(bool fx, uint32_t k) const;
   std::map<uint32_t, std::function<void(Machine&)>> hooks_;
   std::array<uint8_t, kRomSize> rom_{};
-  std::array<uint32_t, kMaxFrameW * kScreenH> frame_{};
-  int frame_w_ = kScreenW;
+  std::array<uint32_t, kFrameCapacity> frame_{};
+  int frame_w_ = kScreenW, frame_h_ = kScreenH;
   uint8_t frame_res_ = 0;  // the resolution of the frame being drawn (taken at its first line)
 
   int speed_ = 1;              // CPU cycles per ST cycle

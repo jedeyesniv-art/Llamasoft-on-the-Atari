@@ -23,6 +23,8 @@ $tests = @(
     @("hardcore", "HARDCORE.PRG", "--press=600:ga:5 --press=1500:ga:800 --press=1500:gl0@0.3:800", 2600, "play"),
     @("rmctt", "REVTT.TOS", "--press=300:ga:5 --press=600:ga:5 --press=900:ga:5 --press=1200:ga:5 --press=1500:ga:5 --press=1800:ga:5 --press=2100:gl0@1:1000 --press=2100:grt:1000", 3200, "play"),
     @("photonstorm", "PHOTON.YAK", "--press=1500:ga:5 --press=1700:gl0@0.9:600 --press=1700:ga:600", 2500, "play"),
+    # Llamazap (Falcon030): through the manual check (any word, then OK), the menus, into play; 25 a second there
+    @("llamazap", "LLAMAZAP.PRG", "--press=600:gright:3 --press=640:ga:3 --press=680:gdown:3 --press=705:gdown:3 --press=730:gdown:3 --press=755:gright:3 --press=780:gright:3 --press=805:gright:3 --press=830:gright:3 --press=855:gright:3 --press=880:gright:3 --press=905:ga:3 --press=1500:ga:3 --press=2400:ga:3 --press=3000:ga:3 --press=3600:ga:3 --press=4300:ga:3 --press=4600:ga:3 --press=5000:ga:1500 --press=5200:gl0@1:600", 6200, "runs"),
     @("docs-rmc512", "DOX.TOS", "--press=300:gdown:40", 500, "runs"),
     @("docs-defender2", "READ_ME.PP", "--press=300:gdown:40", 500, "runs"),
     @("docs-hardcore", "DOC100E.PRG", "--press=400:B:5 --press=700:Down:4", 900, "runs")

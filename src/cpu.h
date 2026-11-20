@@ -13,7 +13,7 @@ namespace cpu {
 
 enum Reg { D0 = 0, A0 = 8, A7 = 15, PC = 16, SR, USP, SSP, PPC };
 
-void Init(st::Machine* machine);
+void Init(st::Machine* machine, bool m68030 = false);  // the Falcon's 68030, else the ST's 68000
 int Execute(int cycles);  // runs at least `cycles` (unless ended early); returns cycles run
 int CyclesRun();          // cycles run so far in the current Execute (0 outside)
 void EndSlice();          // makes the current Execute return after this instruction

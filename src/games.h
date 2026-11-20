@@ -32,6 +32,7 @@ struct Game {
   std::vector<uint32_t> play_more;                                          // more of them
   bool play_word = false;  // play_at is a word, not a long
   bool ste = false;        // an STE program (STE colours; DMA sound is always there)
+  bool falcon = false;     // an Atari Falcon030 program (st::Machine::SetFalcon)
   // Boot the ST at 60 Hz when the setting <id>_60hz is 1 (its default): for games that read the sync register
   // at boot and adjust their speeds for 60 Hz (more frames, the same game speed).
   bool boot_60hz = false;

@@ -1,4 +1,5 @@
 #include "input.h"
+#include "llamazap.h"
 
 #include <cmath>
 #include <vector>
@@ -217,7 +218,7 @@ bool HandleEvent(const SDL_Event& e, st::Machine* m) {
       if (uint8_t code = StScancode(e.key.scancode)) m->KeyEvent(code, e.type == SDL_EVENT_KEY_DOWN);
     return false;
   }
-  if (g_mode == Mode::kGeneric) {  // every key goes to the ST; the pad is polled (UpdateGeneric)
+  if (g_mode == Mode::kGeneric || g_mode == Mode::kLlamazap) {  // every key goes to the ST; the pad is polled
     if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat)
       if (uint8_t code = StScancode(e.key.scancode)) m->KeyEvent(code, e.type == SDL_EVENT_KEY_DOWN);
     return false;
@@ -340,6 +341,7 @@ const char* Hint(st::Machine* m) {
   if (g_mode == Mode::kTripATron) return trip::Hint(m, !g_pads.empty());
   if (g_mode == Mode::kRmc || g_mode == Mode::kAndes || g_mode == Mode::kDefender2 || g_mode == Mode::kHardcore || g_mode == Mode::kDocs || g_mode == Mode::kPhotonStorm) return stgames::Hint(m, !g_pads.empty());
   if (g_mode == Mode::kGeneric) return nullptr;
+  if (g_mode == Mode::kLlamazap) return llamazap::Hint(m);
   if (g_gridrunner) return grid::Hint(m, !g_pads.empty());
   if (game::Paused(*m))
     return g_pads.empty() ? "O: resume   Esc: quit to title\nT / G: tentacle on / off"

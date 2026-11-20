@@ -35,7 +35,7 @@ void m68k_write_memory_32(unsigned int a, unsigned int v) {
 // The disassembler must not touch I/O.
 unsigned int m68k_read_disassembler_16(unsigned int a) {
   a &= 0xFFFFFF;
-  return a + 1 < st::kRamSize ? g_machine->Ram()[a] << 8 | g_machine->Ram()[a + 1] : 0;
+  return a + 1 < g_machine->RamSize() ? g_machine->Ram()[a] << 8 | g_machine->Ram()[a + 1] : 0;
 }
 unsigned int m68k_read_disassembler_32(unsigned int a) {
   return m68k_read_disassembler_16(a) << 16 | m68k_read_disassembler_16(a + 2);
@@ -49,10 +49,10 @@ void st_instruction(unsigned int pc) {
 
 namespace cpu {
 
-void Init(st::Machine* machine) {
+void Init(st::Machine* machine, bool m68030) {
   g_machine = machine;
   m68k_init();
-  m68k_set_cpu_type(M68K_CPU_TYPE_68000);
+  m68k_set_cpu_type(m68030 ? M68K_CPU_TYPE_68030 : M68K_CPU_TYPE_68000);
   m68k_pulse_reset();
 }
 

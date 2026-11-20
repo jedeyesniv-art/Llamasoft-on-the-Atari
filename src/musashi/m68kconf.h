@@ -66,19 +66,19 @@
 
 /* Turn ON if you want to use the following M68K variants */
 #ifndef M68K_EMULATE_010
-#define M68K_EMULATE_010            M68K_OPT_OFF
+#define M68K_EMULATE_010            M68K_OPT_ON
 #endif
 
 #ifndef M68K_EMULATE_EC020
-#define M68K_EMULATE_EC020          M68K_OPT_OFF
+#define M68K_EMULATE_EC020          M68K_OPT_ON
 #endif
 
 #ifndef M68K_EMULATE_020
-#define M68K_EMULATE_020            M68K_OPT_OFF
+#define M68K_EMULATE_020            M68K_OPT_ON
 #endif
 
 #ifndef M68K_EMULATE_030
-#define M68K_EMULATE_030            M68K_OPT_OFF
+#define M68K_EMULATE_030            M68K_OPT_ON
 #endif
 
 #ifndef M68K_EMULATE_040

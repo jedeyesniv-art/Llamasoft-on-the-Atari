@@ -31,6 +31,39 @@ elease\Llamatron-<ver>-windows.zip (no game
 - NEXT MAJOR STEP (owner 2026-11-01, after bug fixes from the owner's testing): PLAN-NEXT-LEVEL.md - run-ahead
   (lower input lag, all games), then a native remaster renderer with Photon Storm as the pilot.
 
+## Llamazap: the Atari Falcon030 (2026-11-19, branch falcon; owner: "pretty flawless")
+- Llamazap (Llamasoft 1993, Falcon030; "(c) 1993 Atari Corp." on its title): Private\new\llamazap\Llamazap.st (from
+  Private\llamazap_[falcon030]_atari_(uk).zip: a 1.44 MB PC-formatted disk, LLAMAZAP.PRG (Pack-Ice) + STUFF\: 7 MODs,
+  LLAMAFX.BIN, YAKKY.DA high scores; no BAA2.COW - the game opens it, carries on without). Also a Jan 1993 beta,
+  Private\llamazap-falcon.zip (silent, no protection). Registry id llamazap, Game::falcon, input::Mode::kLlamazap.
+  Release status undecided (commercial: ask the owner).
+- st::Machine::SetFalcon (before Load; src/machine_falcon.inc): 4 MB (ram_size_ replaces kRamSize in machine.cpp;
+  phystop = 4 MB: it caches its data), Musashi as a 68030 (m68kconf: 010..030 on; cpu::Init(m, true)) at 2x the ST
+  clock (cpu_mul_), exception frames 8 bytes (frame_bytes_: our TOS trap code). VIDEL via Vsetmode ($063 = 8 planes,
+  TV overscan 384 x 240, PAL), palette $FF9800, base low $FF820D, writable video counter $FF8205/7/9 (its timer B
+  splits movep there - which also zeroes $FF8203: so the Falcon reloads the counter at display start, not at the
+  VBL), line offset $FF820E/F, line words $FF8210, hscroll $FF8265 (non-zero = one more 16-pixel group fetched a
+  line: the game writes offset 120 then, else 128). main.cpp: texture_falcon (frame size), same picture rect.
+- Blitter $FF8A00 (Machine::Blit, a job at once; word write to $FF8A3C = skew first). NFSR: the skipped last read
+  takes its x step with it (src += syi - sxi) - got wrong first: font dashed, logo scrambled.
+- Jaguar pad on the enhanced port (SetJagpad, kJag... bits): write $FF9203 = row select (active low), read $FF9201
+  bit 0 Pause (row 0) / bit 1 A B C Option (rows 0-3), $FF9202 bits 0-3 = U D L R / * 7 4 1 / 0 8 5 2 / # 9 6 3
+  (from the game's own reader $119A0; C also counts as A). Keypad in play: 1-9 buy power-ups 0-8 (table $11CC8,
+  tokens $4B544); a key's column picks the ship ($13028: Phoenix / Falcon / Condor). llamazap.cpp: A / RT = A, X = C,
+  B = B (jump / lock the fire angle), Y Option, Start Pause, right stick flicked = keypad 3 x 3 (R3 = 5), keyboard too.
+- Manual check (protection): a random page / paragraph / line / word of the manual (one 7-bit code a word at
+  $473EE), the typed word hashed; compared at $1AB9C (d3 vs $5138A), kept in $526C0 and checked again in play
+  ($13B44: punishes later). Hook at $1AB9C makes d3 / d4 the wanted code: any word, then OK.
+- Sound: its DSP program (730 words, Dsp_ExecProg) is NOT emulated - a mixer stands in (Machine::DspPacket /
+  MixDsp): Dsp_ExecProg resets; two 1-word DoBlocks = parameters; BlkHandShake blocks load DSP memory from $300
+  (MOD samples, 3 a word, bytes swapped by the 68030) then $4803 (effects, 4-bit, 6 a word, silence 8). Twice a
+  frame the 68030 ($286C4) sends 56 words through the host port: 7 voices x (flags bit0 on bit1 start, address,
+  shift, length, pitch = ProTracker period x 450.11, left, right 0..64, unused); 6 music voices, the 7th effects.
+  Paula-style: a voice plays to its end, then loops from the latest address / length. Mono out. Owner: sounds right.
+- Draws 25 frames/s in play by design (same at 4x CPU). Smoke test has a llamazap run (Tools/smoke_all.ps1).
+- Next (ideas): owner's verdict on the right-stick keypad; 50 fps (find its frame divisor); stereo; launcher
+  preview; remap list; rumble; a label on sheet 3's empty row (stand-in for now).
+
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)
 - Porting the next game: REMASTER.md (recipe, verification, pitfalls, per-game notes). Owner: run-ahead on
   by default in every port; no public push until all the ports are done.

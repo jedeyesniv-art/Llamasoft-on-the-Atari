@@ -1,6 +1,7 @@
 #include "machine.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,8 +32,6 @@ constexpr uint32_t kRomVectors = 0x400;      // one ILLEGAL per exception vector
 constexpr uint32_t kSsp = 0x8000;        // supervisor stack (TOS's is in low memory too)
 constexpr uint32_t kKbdvbase = 0x2000;   // the IKBD vector table (XBIOS Kbdvbase), 9 longs
 constexpr uint32_t kIkbdTarget = kKbdvbase + 0x40, kIkbdPacket = kKbdvbase + 0x48;  // for kRomIkbdCall
-constexpr uint32_t kScreen = 0xF8000;    // TOS's screen at the top of RAM
-constexpr uint32_t kHitpa = kScreen;
 
 constexpr double kMfpHz = 2457600.0;
 constexpr double kCyclesPerMfp = kCpuHz / kMfpHz;
@@ -62,7 +61,7 @@ bool Machine::Load(const disk::Program& program, std::map<std::string, disk::Byt
   files_ = std::move(files);
   save_dir_ = save_dir;
   uint32_t text_end = kTextBase + uint32_t(program.text.size());
-  if (text_end + program.bss_size > kHitpa) return *error = "program too large", false;
+  if (text_end + program.bss_size > Screen()) return *error = "program too large", false;
 
   // ROM: the stubs.
   auto rom16 = [&](uint32_t off, std::initializer_list<uint16_t> words) {
@@ -148,14 +147,14 @@ bool Machine::Load(const disk::Program& program, std::map<std::string, disk::Byt
   Put16(m + kLineA - 0x0C, kScreenW);
   Put16(m + kLineA - 0x04, kScreenH);
   Put16(m + kLineA - 0x02, 160);
-  logbase_ = kScreen;
+  logbase_ = Screen();
   Put32(m + 0xB4, kRomBase + kRomTrap13);  // BIOS
   Put32(m + 0xB8, kRomBase + kRomTrap14);  // XBIOS
   Put32(m + 0x118, kRomBase + kRomAcia);   // MFP vector base $40 + channel 6
-  Put32(m + 0x42E, kRamSize);              // phystop
+  Put32(m + 0x42E, ram_size_);              // phystop
   Put32(m + 0x432, 0x10000);               // _membot
-  Put32(m + 0x436, kHitpa);                // _memtop
-  Put32(m + 0x44E, kScreen);               // _v_bas_ad
+  Put32(m + 0x436, Screen());                // _memtop
+  Put32(m + 0x44E, Screen());               // _v_bas_ad
   for (int i = 0; i < 9; ++i) Put32(m + kKbdvbase + i * 4, kRomBase + kRomRts);
   Put32(m + kKbdvbase + 0x20, kRomBase + kRomIkbdDefault);
   kbdvbase_ = kKbdvbase;
@@ -165,24 +164,32 @@ bool Machine::Load(const disk::Program& program, std::map<std::string, disk::Byt
     if (r + 4 > program.text.size()) return *error = "bad relocation", false;
   parents_.clear();
   mallocs_.clear();
-  malloc_top_ = kHitpa;
-  PlaceProgram(kBasepage, kHitpa, program, 0, 0);
+  malloc_top_ = Screen();
+  PlaceProgram(kBasepage, Screen(), program, 0, 0);
 
   // Hardware as TOS leaves it.
   mfp_[VR] = 0x48;  // vector base $40, software end-of-interrupt
   mfp_[IERB] = mfp_[IMRB] = 1 << kChanAcia;
   mfp_[AER] = 0x04;
   acia_ctrl_ = 0x96;
-  vbase_hi_ = uint8_t(kScreen >> 16);
-  vbase_mid_ = uint8_t(kScreen >> 8);
-  vbase_latched_ = kScreen;
+  vbase_hi_ = uint8_t(Screen() >> 16);
+  vbase_mid_ = uint8_t(Screen() >> 8);
+  vbase_latched_ = Screen();
   // TOS's low resolution palette: white, the colours, black last (the console's text colour).
   static const uint16_t kTosPalette[16] = {0x777, 0x700, 0x070, 0x770, 0x007, 0x707, 0x077, 0x555,
                                            0x333, 0x733, 0x373, 0x773, 0x337, 0x737, 0x377, 0x000};
   std::memcpy(palette_, kTosPalette, sizeof(palette_));
   ym_.Reset();
 
-  cpu::Init(this);
+  if (falcon_) {
+    SetVideoMode(0x00A2);  // as TOS 4 boots on a PAL TV: ST compatible low resolution, 4 planes
+    for (int i = 0; i < 16; ++i) {  // the first 16 Falcon colours = the ST palette's
+      uint16_t c = palette_[i];
+      auto ch = [](unsigned v) { return uint32_t((v & 7) << 5 | (v & 7) << 2); };
+      pal256_[size_t(i)] = ch(c >> 8) << 24 | ch(c >> 4) << 16 | ch(c);
+    }
+  }
+  cpu::Init(this, falcon_);
   StartProcess(kBasepage);
   return true;
 }
@@ -196,7 +203,7 @@ void Machine::PlaceProgram(uint32_t bp, uint32_t hitpa, const disk::Program& pro
   std::memcpy(m + text, program.text.data(), size);
   for (uint32_t r : program.relocs)
     if (r + 4 <= size) Put32(m + text + r, Get32(m + text + r) + text);
-  std::fill(m + text_end, m + std::min(text_end + program.bss_size, kRamSize), 0);
+  std::fill(m + text_end, m + std::min(text_end + program.bss_size, ram_size_), 0);
   uint8_t* b = m + bp;
   Put32(b + 0x00, bp);
   Put32(b + 0x04, hitpa);
@@ -283,7 +290,7 @@ bool Machine::Pexec(uint32_t args, uint32_t* d0, bool* started) {
   parent.usp = cpu::Get(cpu::USP);
   parent.sr = Get16(&ram_[ssp]);
   parent.ret = Get32(&ram_[ssp + 2]);
-  parent.ssp = ssp + 6;
+  parent.ssp = ssp + uint32_t(frame_bytes_);
   parents_.push_back(parent);
   StartProcess(bp);
   *started = true;
@@ -319,15 +326,27 @@ bool Machine::RunFrame() {
   // A frame is 313 lines of 512 cycles (50 Hz) or 263 of 508 (60 Hz); the 200 displayed lines start at line 63
   // (34); a line's display ends 376 cycles into it - then it's drawn and timer B counts it.
   const bool hz60 = Is60Hz();
-  const uint64_t cpl = hz60 ? 508 : 512, first = hz60 ? 34 : 63;
+  const int lines = frame_h_;  // shown lines: 200 (the Falcon's overscan 240, centred on the ST's)
+  const uint64_t cpl = hz60 ? 508 : 512, first = (hz60 ? 34 : 63) - uint64_t(lines - kScreenH) / 2;
   uint64_t frame_end = frame_start_ + (hz60 ? 133604 : 160256);
   auto line_end = [&](int l) { return frame_start_ + (first + uint64_t(l)) * cpl + 376; };
   line_ = 0;
+  // The ST's shifter takes the new screen address at the VBL; the Falcon's VIDEL when the picture starts (after
+  // the VBL handler has run: Llamazap's timer B splits write $FF8203 as a side effect and its VBL puts it back).
+  const uint64_t display_start = frame_start_ + first * cpl;
+  bool latched = !falcon_;
+  auto latch = [&]() {
+    uint32_t base = uint32_t(vbase_hi_) << 16 | uint32_t(vbase_mid_) << 8 | (falcon_ ? vbase_lo_ : 0);
+    if (base != vbase_latched_) ++swaps_;  // the game shows a new frame
+    vbase_latched_ = base;
+    vcount_ = base;
+  };
   while (!ended_ && cycles_done_ < frame_end) {
     uint64_t next = frame_end;
+    if (!latched) next = std::min(next, display_start);
     for (const Timer& t : timers_)
       if (t.next) next = std::min(next, t.next);
-    if (line_ < kScreenH) next = std::min(next, line_end(line_));
+    if (line_ < lines) next = std::min(next, line_end(line_));
     if (!ikbd_out_.empty() && !acia_rx_full_) next = std::min(next, std::max(acia_next_, cycles_done_ + 1));
     int slice = int(std::max<uint64_t>(next - cycles_done_, 1));
     uint64_t ran = uint64_t(cpu::Execute(slice * speed_)) + cpu_rem_;
@@ -335,17 +354,15 @@ bool Machine::RunFrame() {
     cpu_rem_ = int(ran % uint64_t(speed_));
     RunTimers(cycles_done_);
     AciaService(cycles_done_);
-    while (line_ < kScreenH && line_end(line_) <= cycles_done_) {
+    if (!latched && cycles_done_ >= display_start) latch(), latched = true;
+    while (line_ < lines && line_end(line_) <= cycles_done_) {
       if (!sandbox) RenderLine(line_);
       ++line_;
       DisplayLineEnd();
     }
   }
-  while (!sandbox && line_ < kScreenH) RenderLine(line_++);  // (the program ended mid-frame)
-  // VBL: the shifter latches the new screen address.
-  uint32_t base = uint32_t(vbase_hi_) << 16 | uint32_t(vbase_mid_) << 8;
-  if (base != vbase_latched_) ++swaps_;  // the game shows a new frame
-  vbase_latched_ = base;
+  while (!sandbox && line_ < lines) RenderLine(line_++);  // (the program ended mid-frame)
+  if (!falcon_) latch();  // VBL: the shifter latches the new screen address
   vbl_pending_ = true;
   UpdateIrq();
   frame_start_ = frame_end;
@@ -360,12 +377,13 @@ void Machine::Sync() {
   size_t from = audio_.size();
   ym_.Run(double(now - audio_synced_) * (2000000.0 / kCpuHz), &audio_);
   if (dma_on_) MixDma(from);
+  if (dsp_running_) MixDsp(from);
   audio_synced_ = now;
 }
 
 void Machine::DmaStart() {
   auto addr = [&](int hi) {
-    return (uint32_t(ste_snd_[hi]) << 16 | uint32_t(ste_snd_[hi + 2]) << 8 | (ste_snd_[hi + 4] & 0xFE)) % kRamSize;
+    return (uint32_t(ste_snd_[hi]) << 16 | uint32_t(ste_snd_[hi + 2]) << 8 | (ste_snd_[hi + 4] & 0xFE)) % ram_size_;
   };
   dma_pos_ = addr(0x03);
   dma_end_ = addr(0x0F);
@@ -700,6 +718,7 @@ void Machine::CalmFrame() {
 }
 
 void Machine::RenderLine(int y) {
+  if (videl_) return RenderFalconLine(y);
   uint32_t pal[16];
   std::memcpy(&line_palette_[size_t(y) * 16], palette_, sizeof(palette_));
   for (int i = 0; i < 16; ++i) {
@@ -715,7 +734,7 @@ void Machine::RenderLine(int y) {
   if (frame_res_ == 1) {  // medium: 2 planes, 640 pixels, colours 0-3
     uint32_t* out = &frame_[y * kMaxFrameW];
     for (int g = 0; g < 40; ++g) {
-      uint32_t a = (vbase_latched_ + uint32_t(y * 160 + g * 4)) % kRamSize;
+      uint32_t a = (vbase_latched_ + uint32_t(y * 160 + g * 4)) % ram_size_;
       uint16_t p0 = Get16(&ram_[a]), p1 = Get16(&ram_[a + 2]);
       for (int x = 0; x < 16; ++x) {
         int s = 15 - x;
@@ -731,7 +750,7 @@ void Machine::RenderLine(int y) {
   }
   uint32_t* out = &frame_[y * kScreenW];
   for (int g = 0; g < 20; ++g) {
-    uint32_t a = (vbase_latched_ + uint32_t(y * 160 + g * 8)) % kRamSize;
+    uint32_t a = (vbase_latched_ + uint32_t(y * 160 + g * 8)) % ram_size_;
     uint16_t p0 = Get16(&ram_[a]), p1 = Get16(&ram_[a + 2]), p2 = Get16(&ram_[a + 4]), p3 = Get16(&ram_[a + 6]);
     for (int x = 0; x < 16; ++x) {
       int s = 15 - x;
@@ -807,9 +826,10 @@ void Machine::ConsoleKey(uint8_t sc) {
 
 uint32_t Machine::Read8(uint32_t a) {
   a &= 0xFFFFFF;
-  if (a < kRamSize) return ram_[a];
+  if (a < ram_size_) return ram_[a];
   if (a >= kRomBase && a < kRomBase + kRomSize) return rom_[a - kRomBase];
   if (a < 0xFF8000) return 0xFF;
+  if (uint8_t v; falcon_ && FalconIoRead(a, &v)) return v;
   if ((a & 0xFFFF00) == 0xFF8800) return (a & 2) ? 0xFF : ym_.Read(ym_sel_);
   if (a >= 0xFFFA00 && a < 0xFFFA40) return (a & 1) ? MfpRead(int(a - 0xFFFA01) / 2) : 0xFF;
   switch (a) {
@@ -852,17 +872,18 @@ uint32_t Machine::Read8(uint32_t a) {
 
 uint32_t Machine::Read16(uint32_t a) {
   a &= 0xFFFFFF;
-  if (a + 1 < kRamSize) return uint32_t(ram_[a]) << 8 | ram_[a + 1];
+  if (a + 1 < ram_size_) return uint32_t(ram_[a]) << 8 | ram_[a + 1];
   return Read8(a) << 8 | Read8(a + 1);
 }
 
 void Machine::Write8(uint32_t a, uint8_t v) {
   a &= 0xFFFFFF;
-  if (a < kRamSize) {
+  if (a < ram_size_) {
     ram_[a] = v;
     return;
   }
   if (a < 0xFF8000) return;
+  if (falcon_ && FalconIoWrite(a, v)) return;
   if ((a & 0xFFFF00) == 0xFF8800) {
     if (a & 2) {
       Sync();
@@ -909,9 +930,14 @@ void Machine::Write8(uint32_t a, uint8_t v) {
 
 void Machine::Write16(uint32_t a, uint16_t v) {
   a &= 0xFFFFFF;
-  if (a + 1 < kRamSize) {
+  if (a + 1 < ram_size_) {
     ram_[a] = uint8_t(v >> 8);
     ram_[a + 1] = uint8_t(v);
+    return;
+  }
+  if (falcon_ && a == 0xFF8A3C) {  // the blitter's control and skew together: the skew first, then go
+    blit_[0x3D] = uint8_t(v);
+    Write8(a, uint8_t(v >> 8));
     return;
   }
   Write8(a, uint8_t(v >> 8));
@@ -922,7 +948,7 @@ void Machine::Write16(uint32_t a, uint16_t v) {
 
 std::string Machine::ReadString(uint32_t a) {
   std::string s;
-  for (; a < kRamSize && ram_[a] && s.size() < 256; ++a) s += char(ram_[a]);
+  for (; a < ram_size_ && ram_[a] && s.size() < 256; ++a) s += char(ram_[a]);
   return s;
 }
 
@@ -957,7 +983,7 @@ bool Machine::IllegalOpcode(int) {
     uint16_t sr = Get16(&ram_[ssp]);
     uint32_t at = Get32(&ram_[ssp + 2]) & 0xFFFFFF;
     LineA(Read16(at) & 0xFFF);
-    cpu::Set(cpu::A7, ssp + 6);
+    cpu::Set(cpu::A7, ssp + uint32_t(frame_bytes_));
     cpu::Set(cpu::SR, sr);
     cpu::Set(cpu::PC, at + 2);
     return true;
@@ -978,7 +1004,7 @@ bool Machine::IllegalOpcode(int) {
   }
   // A trap: the exception frame (SR, PC) is on the supervisor stack, the arguments on the caller's stack.
   uint32_t ssp = cpu::Get(cpu::A7) & 0xFFFFFF;
-  if (ssp + 6 > kRamSize) {
+  if (ssp + uint32_t(frame_bytes_) > ram_size_) {
     LOG("trap with a bad supervisor stack $%X (pc $%X)", ssp, pc);
     ended_ = true;
     cpu::EndSlice();
@@ -986,20 +1012,20 @@ bool Machine::IllegalOpcode(int) {
   }
   uint16_t sr = Get16(&ram_[ssp]);
   uint32_t ret = Get32(&ram_[ssp + 2]);
-  uint32_t args = (sr & 0x2000) ? ssp + 6 : cpu::Get(cpu::USP);
+  uint32_t args = (sr & 0x2000) ? ssp + uint32_t(frame_bytes_) : cpu::Get(cpu::USP);
   uint32_t d0 = 0;
   uint16_t fn = Get16(&ram_[args]);
   if (off == kRomTrap1 && fn == 0x20) {  // Super(stack): switch to supervisor mode; the user stack becomes SSP
     uint32_t stack = Get32(&ram_[args + 2]);
     if (!(sr & 0x2000)) {
       uint32_t usp = cpu::Get(cpu::USP);
-      cpu::Set(cpu::D0, ssp + 6);
+      cpu::Set(cpu::D0, ssp + uint32_t(frame_bytes_));
       cpu::Set(cpu::SR, sr | 0x2000);
       cpu::Set(cpu::A7, stack ? stack : usp);
     } else {
       cpu::Set(cpu::D0, cpu::Get(cpu::USP));
-      cpu::Set(cpu::A7, ssp + 6);
-      cpu::Set(cpu::USP, ssp + 6);
+      cpu::Set(cpu::A7, ssp + uint32_t(frame_bytes_));
+      cpu::Set(cpu::USP, ssp + uint32_t(frame_bytes_));
       cpu::Set(cpu::SR, sr & ~0x2000);
       if (stack) cpu::Set(cpu::SSP, stack);
     }
@@ -1033,7 +1059,7 @@ bool Machine::IllegalOpcode(int) {
     handled = off == kRomTrap1 ? Gemdos(args, &d0) : off == kRomTrap13 ? Bios(args, &d0) : Xbios(args, &d0);
   }
   if (trap_wait_) {  // nothing to read yet: run the trap again
-    cpu::Set(cpu::A7, ssp + 6);
+    cpu::Set(cpu::A7, ssp + uint32_t(frame_bytes_));
     cpu::Set(cpu::SR, sr);
     cpu::Set(cpu::PC, ret - 2);
     return true;
@@ -1048,7 +1074,7 @@ bool Machine::IllegalOpcode(int) {
   }
   cpu::Set(cpu::D0, d0);
   // Return from the exception.
-  cpu::Set(cpu::A7, ssp + 6);
+  cpu::Set(cpu::A7, ssp + uint32_t(frame_bytes_));
   cpu::Set(cpu::SR, sr);
   cpu::Set(cpu::PC, ret);
   return true;
@@ -1091,7 +1117,7 @@ bool Machine::Gemdos(uint32_t args, uint32_t* d0) {
       return true;
     case 0x0A: {  // Cconrs(buf): a line from the keyboard - an empty one
       uint32_t buf = Get32(p + 2) & 0xFFFFFF;
-      if (buf + 1 < kRamSize) ram_[buf + 1] = 0;
+      if (buf + 1 < ram_size_) ram_[buf + 1] = 0;
       return true;
     }
     case 0x10: *d0 = uint32_t(-1); return true;  // Cconos
@@ -1183,7 +1209,7 @@ bool Machine::Gemdos(uint32_t args, uint32_t* d0) {
       auto it = mallocs_.find(a);
       if (it == mallocs_.end()) return *d0 = uint32_t(-40), true;
       mallocs_.erase(it);
-      malloc_top_ = mallocs_.empty() ? kHitpa : mallocs_.begin()->first;
+      malloc_top_ = mallocs_.empty() ? Screen() : mallocs_.begin()->first;
       *d0 = 0;
       return true;
     }
@@ -1238,7 +1264,7 @@ bool Machine::Gemdos(uint32_t args, uint32_t* d0) {
       uint32_t count = Get32(p + 4), buf = Get32(p + 8) & 0xFFFFFF;
       OpenFile& f = it->second;
       disk::Bytes& data = files_[f.name];
-      count = std::min(count, kRamSize - std::min(buf, kRamSize));
+      count = std::min(count, ram_size_ - std::min(buf, ram_size_));
       if (fn == 0x3F) {
         size_t n = std::min<size_t>(count, data.size() - std::min(f.pos, data.size()));
         std::memcpy(&ram_[buf], data.data() + f.pos, n);
@@ -1536,8 +1562,8 @@ void Machine::ConsoleClear(int col0, int row0, int col1, int row1) {
 }
 
 void Machine::ConsoleScroll(int top, int dir) {
-  uint32_t base = logbase_ % kRamSize;
-  auto line = [&](int r) { return &ram_[(base + uint32_t(r) * 8 * 160) % kRamSize]; };
+  uint32_t base = logbase_ % ram_size_;
+  auto line = [&](int r) { return &ram_[(base + uint32_t(r) * 8 * 160) % ram_size_]; };
   if (dir > 0) {  // rows top+1.. move up, the last row clears
     for (int r = top; r < 24; ++r) std::memmove(line(r), line(r + 1), 8 * 160);
     ConsoleClear(0, 24, 79, 24);
@@ -1613,11 +1639,11 @@ void Machine::ConsoleOut(uint8_t c) {
 
 int Machine::GetPixel(int x, int y) {
   if (res_ == 1) {
-    uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 4) % kRamSize;
+    uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 4) % ram_size_;
     int bit = 15 - (x & 15);
     return ((Get16(&ram_[a]) >> bit) & 1) | ((Get16(&ram_[a + 2]) >> bit) & 1) << 1;
   }
-  uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 8) % kRamSize;
+  uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 8) % ram_size_;
   int bit = 15 - (x & 15), c = 0;
   for (int p = 0; p < 4; ++p) c |= ((Get16(&ram_[a + p * 2]) >> bit) & 1) << p;
   return c;
@@ -1626,7 +1652,7 @@ int Machine::GetPixel(int x, int y) {
 void Machine::SetPixel(int x, int y, int c) {
   if (x < 0 || y < 0 || x >= (res_ == 1 ? kMaxFrameW : kScreenW) || y >= kScreenH) return;
   if (res_ == 1) {
-    uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 4) % kRamSize;
+    uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 4) % ram_size_;
     uint16_t bit = uint16_t(0x8000 >> (x & 15));
     for (int p = 0; p < 2; ++p) {
       uint16_t w = Get16(&ram_[a + p * 2]);
@@ -1634,7 +1660,7 @@ void Machine::SetPixel(int x, int y, int c) {
     }
     return;
   }
-  uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 8) % kRamSize;
+  uint32_t a = (logbase_ + uint32_t(y) * 160 + uint32_t(x >> 4) * 8) % ram_size_;
   uint16_t bit = uint16_t(0x8000 >> (x & 15));
   for (int p = 0; p < 4; ++p) {
     uint16_t w = Get16(&ram_[a + p * 2]);
@@ -1783,6 +1809,7 @@ bool Machine::Bios(uint32_t args, uint32_t* d0) {
 
 bool Machine::Xbios(uint32_t args, uint32_t* d0) {
   const uint8_t* p = &ram_[args];
+  if (bool handled; falcon_ && FalconXbios(args, d0, &handled)) return handled;
   switch (Get16(p)) {
     case 0: {  // Initmous(type, params, vector): 0 off, 1 relative, (2 absolute, 4 keycode: not done)
       int type = Get16(p + 2);
@@ -1831,7 +1858,7 @@ bool Machine::Xbios(uint32_t args, uint32_t* d0) {
       return true;
     }
     case 2:  // Physbase
-      *d0 = uint32_t(vbase_hi_) << 16 | uint32_t(vbase_mid_) << 8;
+      *d0 = uint32_t(vbase_hi_) << 16 | uint32_t(vbase_mid_) << 8 | (falcon_ ? vbase_lo_ : 0);
       return true;
     case 3: *d0 = logbase_; return true;  // Logbase
     case 15: *d0 = 0; return true;        // Rsconf (serial port settings)
@@ -1839,7 +1866,7 @@ bool Machine::Xbios(uint32_t args, uint32_t* d0) {
     case 5: {                         // Setscreen(log, phys, rez)
       uint32_t log = Get32(p + 2), phys = Get32(p + 6);
       if (log != 0xFFFFFFFF) logbase_ = log & 0xFFFFFF, Put32(&ram_[0x44E], logbase_);
-      if (phys != 0xFFFFFFFF) vbase_hi_ = uint8_t(phys >> 16), vbase_mid_ = uint8_t(phys >> 8);
+      if (phys != 0xFFFFFFFF) vbase_hi_ = uint8_t(phys >> 16), vbase_mid_ = uint8_t(phys >> 8), vbase_lo_ = uint8_t(phys);
       int16_t rez = int16_t(Get16(p + 10));
       if (rez >= 0 && rez != res_) {
         res_ = uint8_t(rez);
@@ -1890,5 +1917,7 @@ void Machine::SaveFile(const std::string& name) {
     LOG("can't write %s", path.c_str());
   }
 }
+
+#include "machine_falcon.inc"
 
 }  // namespace st

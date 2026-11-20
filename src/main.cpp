@@ -26,6 +26,7 @@
 #include "music.h"
 #include "settings.h"
 #include "input.h"
+#include "llamazap.h"
 #include "crt.h"
 #include "remaster.h"
 #include "remaster_grid.h"
@@ -279,7 +280,7 @@ void SurveyFrame(const st::Machine& m, int frame) {
 }
 
 void SaveShot(const st::Machine& m, const std::string& path) {
-  SDL_Surface* s = SDL_CreateSurfaceFrom(m.FrameWidth(), st::kScreenH, SDL_PIXELFORMAT_ARGB8888,
+  SDL_Surface* s = SDL_CreateSurfaceFrom(m.FrameWidth(), m.FrameHeight(), SDL_PIXELFORMAT_ARGB8888,
                                          const_cast<uint32_t*>(m.Frame()), m.FrameWidth() * 4);
   if (s && SDL_SaveBMP(s, path.c_str())) LOG("screenshot %s", path.c_str());
   SDL_DestroySurface(s);
@@ -380,6 +381,7 @@ struct Context {
   SDL_Renderer* renderer = nullptr;
   SDL_Texture* texture = nullptr;
   SDL_Texture* texture_wide = nullptr;  // medium resolution, 640 x 200
+  SDL_Texture* texture_falcon = nullptr;  // the Falcon's VIDEL modes (made for the size shown: 384 x 240 overscan)
   SDL_AudioStream* audio = nullptr;
   int view_h = st::kScreenH;
   double mode_hz = 50;  // the game rate the fullscreen display mode was picked for
@@ -523,6 +525,8 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
   auto machine_owner = std::make_unique<st::Machine>();
   st::Machine& machine = *machine_owner;
   machine.trace_tos = opt.trace_tos;
+  machine.SetFalcon((c.game && c.game->falcon) || program_name == "LLAMAZAP.PRG");
+  if (machine.Falcon()) LOG("an Atari Falcon030: 4 MB, a 68030 at 16 MHz");
   if (!machine.Load(program, std::move(files), c.save_dir.string(), &error)) {
     LOG("load failed: %s", error.c_str());
     return GameEnd::kError;
@@ -531,6 +535,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
   remaster_llama::Start();
   remaster_grid::Start();
   input::Reset();
+  llamazap::Reset();
   grid::Reset();
   if (gridrunner && c.in_game_docs) grid::StartDocs(c.docs_screen);
   rumble::Start(c.game && !c.in_game_docs ? c.game->id : std::string());
@@ -817,6 +822,8 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
           float cap, release;
           stgames::CalmStyle(&hold, &cap, &release);
           machine.SetCalmBackground(stgames::Calm(machine), hold, cap, release);
+        } else if (mode == input::Mode::kLlamazap) {
+          llamazap::Update(&machine);
         } else {
           input::UpdateGeneric(&machine, dx, dy, buttons);
         }
@@ -1006,6 +1013,19 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     if (renderer) {
       // Medium resolution (640 wide) has its own texture, drawn into the same picture.
       SDL_Texture* shown = machine.FrameWidth() > st::kScreenW && c.texture_wide ? c.texture_wide : texture;
+      if (machine.FrameHeight() != st::kScreenH || (machine.Falcon() && machine.FrameWidth() != st::kMaxFrameW &&
+                                                    machine.FrameWidth() != st::kScreenW)) {
+        // A Falcon mode: the same picture rectangle (overscan 384 x 240 has the ST's proportions, a bigger area).
+        float tw = 0, th = 0;
+        if (c.texture_falcon) SDL_GetTextureSize(c.texture_falcon, &tw, &th);
+        if (int(tw) != machine.FrameWidth() || int(th) != machine.FrameHeight()) {
+          if (c.texture_falcon) SDL_DestroyTexture(c.texture_falcon);
+          c.texture_falcon = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                               machine.FrameWidth(), machine.FrameHeight());
+          SDL_SetTextureScaleMode(c.texture_falcon, SDL_SCALEMODE_PIXELART);
+        }
+        if (c.texture_falcon) shown = c.texture_falcon;
+      }
       SDL_UpdateTexture(shown, nullptr, machine.Frame(), machine.FrameWidth() * 4);
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
       SDL_RenderClear(renderer);
@@ -1355,6 +1375,7 @@ void RunProgram(Context& c) {
     RunGame(c, opt.program, true, opt.program == "TRON1MEG.PRG"   ? input::Mode::kLlamatron
                                   : opt.program == "GRIDRUNR.PRG" ? input::Mode::kGridrunner
                                   : opt.program == "TRIP.PRG"     ? input::Mode::kTripATron
+                                  : opt.program == "LLAMAZAP.PRG" ? input::Mode::kLlamazap
                                                                   : input::Mode::kGeneric);
     return;
   }
@@ -1494,6 +1515,7 @@ int main(int argc, char** argv) {
   remaster::Shutdown();
   if (c.texture) SDL_DestroyTexture(c.texture);
   if (c.texture_wide) SDL_DestroyTexture(c.texture_wide);
+  if (c.texture_falcon) SDL_DestroyTexture(c.texture_falcon);
   crt::Shutdown();
   if (c.renderer) SDL_DestroyRenderer(c.renderer);
   if (c.window) SDL_DestroyWindow(c.window);
