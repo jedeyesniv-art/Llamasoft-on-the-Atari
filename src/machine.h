@@ -84,6 +84,21 @@ class Machine {
   uint32_t FrameBase() const { return frame_base_; }
   bool SteColours() const { return ste_colours_; }  // the screen address the last frame was shown from  // 320 (low resolution) or 640 (medium), rows FrameWidth() apart
   const uint16_t* Palette() const { return palette_; }  // the shifter's colour registers now
+  // The Falcon remaster's clean picture (Llamazap: the playfield without sprites): lines read from an address in
+  // one of these ranges are drawn a second time from the address + shift (the game's clean background buffer), with
+  // `margin` pixels more each side (for sliding it); other lines are copied from the picture. SetCleanMargin(0) = off.
+  void SetCleanSource(int i, uint32_t lo, uint32_t hi, int32_t shift) { clean_src_[i & 1] = {lo, hi, shift}; }
+  void SetCleanMargin(int px) { clean_margin_ = px; }
+  int CleanMargin() const { return clean_margin_; }
+  const std::vector<uint32_t>& CleanFrame() const { return clean_; }  // (FrameWidth() + 2 margin) x FrameHeight()
+  const std::vector<uint8_t>& CleanLines() const { return clean_line_; }  // per line: 1 = from a clean source
+  int FrameHscroll() const { return frame_hscroll_; }  // the fine scroll at the first line of the last frame
+  // The Falcon palette entry as ARGB (now).
+  uint32_t FalconColour(int i) const {
+    uint32_t c = pal256_[size_t(i & 255)];
+    auto ex = [](uint32_t v) { return (v & 0xFC) | (v >> 6 & 3); };
+    return 0xFF000000u | ex(c >> 24) << 16 | ex(c >> 16 & 0xFF) << 8 | ex(c & 0xFF);
+  }
   // The colour registers as each displayed line of the last frame was drawn (kScreenH x 16; rasters change them).
   const uint16_t* LinePalettes() const { return line_palette_.data(); }
   bool Is60Hz() const { return !(sync_ & 2); }
@@ -225,6 +240,14 @@ class Machine {
   uint16_t line_words_ = 80;  // $FF8210: words a line
   uint8_t hscroll_ = 0;    // $FF8265: pixels the picture is moved left (0..15)
   std::array<uint32_t, 256> pal256_{};  // $FF9800: RRRRRRxx GGGGGGxx -------- BBBBBBxx
+  struct CleanSource {
+    uint32_t lo = 0, hi = 0;
+    int32_t shift = 0;
+  } clean_src_[2];
+  int clean_margin_ = 0;
+  int frame_hscroll_ = 0;
+  std::vector<uint32_t> clean_;
+  std::vector<uint8_t> clean_line_;
   uint8_t blit_[0x40] = {};             // $FF8A00..$FF8A3F
   uint8_t jag_select_ = 0xFF;           // $FF9203: the row the joypad ports read (active low)
   uint32_t jagpad_ = 0;

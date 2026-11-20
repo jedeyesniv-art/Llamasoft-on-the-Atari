@@ -113,7 +113,26 @@ elease\Llamatron-<ver>-windows.zip (no game
   handlers: $132DC = one split at line 200 (the HUD from $4E004), $13288 = a list of splits (*$4E00C: address,
   hscroll, offset each; multi-band, parallax). Beasties: the single HUD split. Plan if pursued: background = buf0
   through the same (interpolated) scroll; sprites / dots captured at their routines' callers; a Falcon (8-plane,
-  256-colour, 384 x 240) path in remaster.cpp; pilot = $11FE4 stages. Open: the 640-wide wrap with a 384 display. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
+  256-colour, 384 x 240) path in remaster.cpp; pilot = $11FE4 stages. Open: the 640-wide wrap with a 384 display.
+- Remaster pilot (2026-11-20; the $11FE4 stages: 1-4, 6-9, 19): src/remaster_falcon.cpp (own compositor, not
+  remaster.cpp: that one is ST-shaped) + llamazap.cpp hooks. Every sprite goes through one of three clr.l $51338:
+  $14848 (screen x: d0 left, d4 right, d1 middle line in the buffer, a0 image (+2 w, +4 h), d2 planes, $51346
+  variant), $146CC (its twin), $145B2 (from $1457C / $1458A: d0 already the buffer's x - the beams, formation
+  ships). Kept (screen y = top - $49B9E; a buffer x left of the display's start = a line higher on the right:
+  the VIDEL runs on through memory), returned as drawn (d0 = 1); below line $49B9E + 200 = the HUD's, passed.
+  Dots: $250E0 (d0 / d1 buffer x / y, d2 colour, 2 x 2). The screen swap $14012 ends a frame's list: the buffer
+  drawn = *(*(*$2F9D6)) (the descriptor's +4 = the one shown). Images: the call run in a copy of the machine with
+  both shown buffers filled 0 / $FF (it draws where its own state says), what is equal both times = drawn
+  (~1.7 ms an image; a burst of new ones is a hitch). Background = the shown buffer itself, read with a 16-pixel
+  margin each side (Machine::SetCleanSource / CleanFrame: the margins are never drawn into; buffer 0, the clean
+  copy, lacks what isn't caught), slid by (1 - alpha) x the display start's move (mod 320: the background repeats).
+  Lines not from the buffers (the HUD band) as they are. Draw: 1536 x 960, then crt::DrawPicture(384, 240).
+  Verify: env LLAMAZAP_REMASTER_VERIFY=1 = capture but still draw: --mshot (items over the game's own picture)
+  must equal --shot of the same run; checked on all 9 stages: identical but sprites cut by the left edge (the game
+  clips in 16-pixel steps through the wrap; ours are whole) and a dot or two. Runs with / without capture differ
+  (the main loop is quicker without drawing: things timed by drawn frames shift a frame) - compare in one run.
+  LLAMAZAP_IMAGES=1 logs each decoded image. Not done: other stage types, run-ahead, vertical slide (dy), hitch
+  on new images, the stray dots. Scroll $49BA4 identical frame for frame vs 2 (later divergence: collisions / random, as Camels);
   750 swaps in 750 frames at the Falcon's own clock (~70% of instructions still in the wait). The game has it
   as a hidden key: 1-9 = the divisor ($10AFA). Smoke test has a llamazap run (Tools/smoke_all.ps1).
 - Next (ideas): owner's verdict on the right-stick keypad; stereo; launcher

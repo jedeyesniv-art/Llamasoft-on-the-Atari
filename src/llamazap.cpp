@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,6 +19,8 @@
 #include "machine.h"
 #include "pad.h"
 #include "remap.h"
+#include "remaster.h"
+#include "remaster_falcon.h"
 #include "settings.h"
 
 namespace llamazap {
@@ -63,6 +67,7 @@ int g_aim = -1;  // the right stick's direction in the game's numbering, -1 = no
 uint16_t Get16(const st::Machine& m, uint32_t a) { return uint16_t(m.Ram()[a] << 8 | m.Ram()[a + 1]); }
 uint32_t Get32(const st::Machine& m, uint32_t a) { return uint32_t(Get16(m, a)) << 16 | Get16(m, a + 2); }
 void Put16(st::Machine* m, uint32_t a, uint16_t v) { m->Ram()[a] = uint8_t(v >> 8), m->Ram()[a + 1] = uint8_t(v); }
+uint16_t Get16From(const std::vector<uint8_t>& v, uint32_t a) { return a + 1 < v.size() ? uint16_t(v[a] << 8 | v[a + 1]) : 0; }
 
 bool InLevel(const st::Machine& m) {
   uint32_t r = Get32(m, kVblRoutine);
@@ -341,10 +346,244 @@ void SurveyFrame(st::Machine* m) {
   LOG("llamazap: survey written to %s", s.file.c_str());
 }
 
+// The remaster (pilot 2026-11-20: the Beasties / Air-Sea stages, VBL $11FE4; remaster_falcon.cpp draws). Every
+// sprite of the game comes to $14848 (or its twin $146CC) with d0 = its left x on the screen, d4 its right, d1 its
+// middle line in the buffer, a0 the image (+2 width, +4 height), d2 the colour planes, $51346 the variant; there
+// it is clipped to the 384 pixels, the buffer's scroll ($49B9C / $49B9E) added and drawn by the blitter, a plane at
+// a time. The hook keeps it instead (screen x = d0, y = top - $49B9E) and returns as drawn (d0 = 1). Its image:
+// the same call run once in a copy of the machine onto a filled buffer, twice (fill 0 and $FF: what differs was
+// not drawn). Dots ($250E0: d0 / d1 the buffer's x / y, d2 the colour; 2 x 2 pixels) likewise. The main loop's
+// screen swap ($14012) ends a frame's list: the buffer drawn (*(*(*$2F9D6))) is shown from the next VBL.
+// The background: the game's own clean copy, buffer 0 (Machine::SetCleanSource: the shown buffers' lines read
+// from it), which the VIDEL's start in the shown buffer slides.
+constexpr uint32_t kSpriteA = 0x14848, kSpriteANext = 0x1484E, kSpriteB = 0x146CC, kSpriteBNext = 0x146D2;
+// A third way in ($1457C / $1458A, from game objects: the laser beams, the formation ships): d0 is already the
+// buffer's x (0..639, wrapped), d1 the middle line; at $145B2 (the same clr.l) it goes on unclipped but for lines.
+constexpr uint32_t kSpriteC = 0x145B2, kSpriteCNext = 0x145B8;
+constexpr uint32_t kClip = 0x51338, kVariant = 0x51346, kScrollX = 0x49B9C, kScrollY = 0x49B9E, kWide = 0x2C704;
+constexpr uint32_t kDotPlot = 0x250E0, kDotPlotNext = 0x250E2, kSwap = 0x14012, kSwapSame = 0x14022, kSwapOther = 0x14032;
+constexpr uint32_t kDrawDesc = 0x2F9D6, kDescA = 0x2F9A6;
+constexpr int kPlayLines = 200;  // the playfield; the HUD below (timer B split at line 200)
+
+struct Queued {
+  uint64_t id;
+  uint32_t entry;
+  uint32_t regs[16];
+  uint16_t variant;
+  bool buffer_x;  // d0 is the buffer's x (kSpriteC), not the screen's
+};
+std::vector<Queued> g_queue;
+// Tests (env LLAMAZAP_REMASTER_VERIFY): capture and still let the game draw - the items composed over its picture
+// must then be the picture itself (a wrong place or image shows).
+bool g_verify = false;
+
+uint32_t DrawBuffer(const st::Machine& m) { return Get32(m, Get32(m, Get32(m, kDrawDesc))); }
+
+uint64_t Mix(uint64_t h, uint64_t v) { return (h ^ v) * 1099511628211ull; }
+
+void OnSprite(st::Machine& m, uint32_t next) {
+  auto pass = [&] {
+    Put32(&m, kClip, 0);
+    cpu::Set(cpu::PC, next);
+  };
+  if (m.sandbox && !m.ahead) return pass();  // decoding an image: the original's work
+  if (!remaster_falcon::Capturing()) return pass();
+  const bool buffer_x = next == kSpriteCNext;
+  const uint32_t a0 = cpu::Get(cpu::A0);
+  const int16_t sx = int16_t(Get16(m, kScrollX)) + (Get16(m, kWide) ? 32 : 0);
+  const int16_t w = int16_t(Get16(m, a0 + 2));
+  int16_t left = int16_t(cpu::Get(cpu::D0)), right = buffer_x ? int16_t(left + w) : int16_t(cpu::Get(cpu::Reg(cpu::D0 + 4)));
+  const int16_t mid = int16_t(cpu::Get(cpu::Reg(cpu::D0 + 1)));
+  const int16_t h = int16_t(Get16(m, a0 + 4));
+  int16_t top = int16_t(mid - (h >> 1));
+  const int16_t sy = int16_t(Get16(m, kScrollY));
+  if (top >= sy + kPlayLines) return pass();  // below the playfield (the HUD's): the game's own
+  auto clipped = [&] {
+    cpu::Set(cpu::D0, cpu::Get(cpu::D0) & 0xFFFF0000u);
+    remaster::Return(m);
+  };
+  int16_t screen_x = left, screen_top = int16_t(top - sy);
+  if (buffer_x) {
+    // The display runs on through memory: a buffer x left of where it starts shows a line higher, on the right.
+    int off = left - sx;
+    if (off < 0) off += 640, --screen_top;
+    screen_x = int16_t(off), right = int16_t(off + w);
+    if (screen_x >= 0x180 && right - 640 > 0) screen_x = int16_t(screen_x - 640), right = int16_t(right - 640), ++screen_top;
+    if (top + h <= 0 || top > 0x12B) return clipped();
+  } else if (right < 0 || left >= 0x180 || top + h <= sy || top > 0x12B) {
+    return clipped();
+  }
+  if (screen_x >= 0x180 || right <= 0) return clipped();
+  const uint16_t variant = Get16(m, kVariant);
+  uint64_t id = Mix(Mix(Mix(Mix(1469598103934665603ull, next), a0), cpu::Get(cpu::Reg(cpu::D0 + 2))), variant);
+  if (!remaster_falcon::HaveImage(id)) {
+    bool queued = false;
+    for (const auto& q : g_queue) queued |= q.id == id;
+    if (!queued) {
+      Queued q{id, next == kSpriteANext ? kSpriteA : next == kSpriteBNext ? kSpriteB : kSpriteC, {}, variant, buffer_x};
+      for (int r = 0; r < 16; ++r) q.regs[r] = cpu::Get(cpu::Reg(r));
+      g_queue.push_back(q);
+    }
+  }
+  remaster_falcon::Item it;
+  const uint32_t ret = Get32(m, cpu::Get(cpu::A7));
+  it.key = uint64_t(ret) << 32 | (next & 0xFFFF);
+  it.x = float(screen_x - (buffer_x ? 0 : (Get16(m, kWide) ? 32 : 0))), it.y = float(screen_top);
+  it.image = id;
+  remaster_falcon::Add(it);
+  if (g_verify) return pass();
+  cpu::Set(cpu::D0, (cpu::Get(cpu::D0) & 0xFFFF0000u) | 1);
+  remaster::Return(m);
+}
+void OnSpriteA(st::Machine& m) { OnSprite(m, kSpriteANext); }
+void OnSpriteB(st::Machine& m) { OnSprite(m, kSpriteBNext); }
+void OnSpriteC(st::Machine& m) { OnSprite(m, kSpriteCNext); }
+
+void OnDot(st::Machine& m) {  // was: tst.w d1
+  const int16_t y = int16_t(cpu::Get(cpu::Reg(cpu::D0 + 1)));
+  auto original = [&] {
+    uint32_t sr = cpu::Get(cpu::SR) & ~0xFu;
+    if (y < 0) sr |= 8;
+    if (y == 0) sr |= 4;
+    cpu::Set(cpu::SR, sr);
+    cpu::Set(cpu::PC, kDotPlotNext);
+  };
+  if ((m.sandbox && !m.ahead) || !remaster_falcon::Capturing() || y < 0 || y >= 0x12B) {
+    uint32_t sr = cpu::Get(cpu::SR) & ~0xFu;
+    if (y < 0) sr |= 8;
+    if (y == 0) sr |= 4;
+    cpu::Set(cpu::SR, sr);
+    cpu::Set(cpu::PC, kDotPlotNext);
+    return;
+  }
+  const int16_t sy = int16_t(Get16(m, kScrollY)), sx = int16_t(Get16(m, kScrollX));
+  if (y < sy + kPlayLines) {
+    remaster_falcon::Item it;
+    it.dot = true;
+    it.key = uint64_t(Get32(m, cpu::Get(cpu::A7))) << 32 | 0xD07;
+    // As the sprites: left of where the display starts = a line higher, on the right (it runs on through memory).
+    int off = int(cpu::Get(cpu::D0) & 0x7FFE) - sx - (Get16(m, kWide) ? 32 : 0), line = y - sy;
+    if (off < 0) off += 640, --line;
+    if (off >= 640) off -= 640, ++line;
+    it.x = float(off), it.y = float(line);
+    it.colour = uint8_t(cpu::Get(cpu::Reg(cpu::D0 + 2)));
+    remaster_falcon::Add(it);
+  }
+  if (g_verify) return original();
+  remaster::Return(m);  // (the erase list doesn't get this one: nothing drawn to erase)
+}
+
+void OnSwap(st::Machine& m) {  // was: cmpi.l #$2F9A6,$2F9D6 ; bne $14032
+  if (!m.sandbox || m.ahead) remaster_falcon::EndFrame(DrawBuffer(m));
+  cpu::Set(cpu::PC, Get32(m, kDrawDesc) == kDescA ? kSwapSame : kSwapOther);
+}
+
+// The queued images: each call run in a copy of the machine (between frames: Musashi isn't re-entrant).
+bool RunCopy(st::Machine* m, const Queued& q, uint32_t buffer, uint8_t fill, int x, int top, std::vector<uint8_t>* out) {
+  auto fork = std::make_unique<st::Machine>(*m);
+  fork->sandbox = true;
+  fork->ahead = false;
+  uint8_t* ram = fork->Ram();
+  // Both shown buffers filled: it draws into the one its own state says (read back from whichever changed).
+  const uint32_t bufs[2] = {Get32(*m, kBuffers + 4), Get32(*m, kBuffers + 8)};
+  for (uint32_t b : bufs) std::memset(ram + b, fill, kBufferBytes);
+  (void)buffer;
+  const uint32_t magic = Get32(*m, kBuffers) + kBufferBytes - 16, sp = (q.regs[15] & 0xFFFFFE) - 512;
+  ram[magic] = 0x4A, ram[magic + 1] = 0xFC;
+  bool done = false;
+  fork->AddHook(magic, [&done, magic](st::Machine&) {
+    done = true;
+    cpu::Set(cpu::PC, magic);
+    cpu::EndSlice();
+  });
+  for (int k = 0; k < 4; ++k) ram[sp + k] = uint8_t(magic >> (24 - 8 * k));
+  Put16(fork.get(), kVariant, q.variant);
+  std::vector<uint8_t> context = cpu::SaveContext();
+  cpu::SetMachine(fork.get());
+  cpu::Set(cpu::SR, 0x2700);
+  for (int r = 0; r < 15; ++r) cpu::Set(cpu::Reg(r), q.regs[r]);
+  const int16_t d0 = int16_t(q.regs[0]), d4 = int16_t(q.regs[4]);
+  const int16_t h = int16_t(Get16(*fork, q.regs[8] + 4));
+  const int16_t bx = int16_t(q.buffer_x ? x + int16_t(Get16(*fork, kScrollX)) + (Get16(*fork, kWide) ? 32 : 0) : x);
+  cpu::Set(cpu::D0, (q.regs[0] & 0xFFFF0000u) | uint16_t(bx));
+  cpu::Set(cpu::Reg(cpu::D0 + 4), (q.regs[4] & 0xFFFF0000u) | uint16_t(x + (d4 - d0)));
+  cpu::Set(cpu::Reg(cpu::D0 + 1), (q.regs[1] & 0xFFFF0000u) | uint16_t(top + (h >> 1)));
+  cpu::Set(cpu::A7, sp);
+  cpu::Set(cpu::PC, q.entry);
+  for (int i = 0; i < 20 && !done; ++i) cpu::Execute(100000);
+  cpu::SetMachine(m);
+  cpu::RestoreContext(context);
+  if (!done) return false;
+  uint32_t drawn = bufs[0];
+  for (uint32_t b : bufs) {
+    const uint8_t* p = ram + b + uint32_t(std::max(0, top)) * 640;
+    for (uint32_t i = 0; i < 640u * 32u; ++i)
+      if (p[i] != fill) {
+        drawn = b;
+        break;
+      }
+  }
+  out->assign(ram + drawn, ram + drawn + kBufferBytes);
+  return true;
+}
+
+void DecodeQueued(st::Machine* m) {
+  if (g_queue.empty()) return;
+  const uint32_t buffer = DrawBuffer(*m);
+  if (buffer < 0x10000 || buffer + kBufferBytes > st::kFalconRam) return g_queue.clear();
+  static int total = 0;
+  uint64_t t0 = SDL_GetTicksNS();
+  for (const Queued& q : g_queue) {
+    const int16_t d0 = int16_t(q.regs[0]), d4 = int16_t(q.regs[4]);
+    const int16_t w = q.buffer_x ? int16_t(Get16(*m, q.regs[8] + 2)) : int16_t(d4 - d0), h = int16_t(Get16(*m, q.regs[8] + 4));
+    const int sx = int16_t(Get16(*m, kScrollX)) + (q.buffer_x && Get16(*m, kWide) ? 32 : 0), sy = int16_t(Get16(*m, kScrollY));
+    const int x = 96 + (q.buffer_x ? ((d0 - sx) & 15) : (d0 & 15)), top = sy + 40;
+    std::vector<uint8_t> a, b;
+    remaster_falcon::Image im;
+    if (w > 0 && h > 0 && h < 250 && RunCopy(m, q, buffer, 0, x, top, &a) && RunCopy(m, q, buffer, 0xFF, x, top, &b)) {
+      // The rectangle it may have drawn into, in the buffer: 16 pixels more each side.
+      const int bx0 = x + sx - 16, bx1 = x + sx + w + 16;
+      int x0 = 1 << 30, x1 = -1, y0 = 1 << 30, y1 = -1;
+      std::vector<uint16_t> all(size_t(bx1 - bx0) * size_t(h), remaster_falcon::kClear);
+      auto pixel = [&](const std::vector<uint8_t>& s, int bx, int by) {
+        uint32_t at = uint32_t(by) * 640 + uint32_t(bx / 16) * 16;
+        int v = 0;
+        for (int k = 0; k < 8; ++k) v |= ((Get16From(s, at + uint32_t(k * 2)) >> (15 - bx % 16)) & 1) << k;
+        return v;
+      };
+      for (int j = 0; j < h; ++j)
+        for (int bx = bx0; bx < bx1; ++bx) {
+          int va = pixel(a, bx, top + j), vb = pixel(b, bx, top + j);
+          if (va != vb) continue;
+          all[size_t(j) * size_t(bx1 - bx0) + size_t(bx - bx0)] = uint16_t(va);
+          x0 = std::min(x0, bx), x1 = std::max(x1, bx), y0 = std::min(y0, j), y1 = std::max(y1, j);
+        }
+      if (x1 >= 0) {
+        im.w = x1 - x0 + 1, im.h = y1 - y0 + 1, im.ox = x0 - (x + sx), im.oy = y0;
+        im.px.resize(size_t(im.w) * size_t(im.h));
+        for (int j = 0; j < im.h; ++j)
+          for (int i = 0; i < im.w; ++i)
+            im.px[size_t(j) * im.w + i] = all[size_t(j + y0) * size_t(bx1 - bx0) + size_t(x0 + i - bx0)];
+      }
+    }
+    if (SDL_getenv("LLAMAZAP_IMAGES"))
+      LOG("image %016llX: entry %06X variant %d, %d x %d -> %d x %d", (unsigned long long)q.id, q.entry, q.variant, w, h, im.w, im.h);
+    remaster_falcon::SetImage(q.id, std::move(im));
+  }
+  total += int(g_queue.size());
+  if (total < 3 || total % 50 < int(g_queue.size()))
+    LOG("llamazap remaster: %d sprite images so far (%.2f ms for the last %zu)", total, (SDL_GetTicksNS() - t0) / 1e6,
+        g_queue.size());
+  g_queue.clear();
+}
+
 }  // namespace
 
 void Reset() {
   LoadSettings();
+  remaster_falcon::Start();
+  g_queue.clear();
+  g_verify = SDL_getenv("LLAMAZAP_REMASTER_VERIFY") != nullptr;
   if (const char* e = SDL_getenv("LLAMAZAP_SURVEY")) {
     std::string v = e;
     size_t c1 = v.find(':'), c2 = v.find(':', c1 + 1);
@@ -416,6 +655,40 @@ void Update(st::Machine* m) {
     Put16(m, kCheck, 0x4AFC);
     m->AddHook(kCheck, OnManualCheck);
   }
+  if (Get16(*m, kSpriteA) == 0x42B9 && Get32(*m, kSpriteA + 2) == kClip) {  // clr.l $51338 (twice)
+    Put16(m, kSpriteA, 0x4AFC);
+    m->AddHook(kSpriteA, OnSpriteA);
+  }
+  if (Get16(*m, kSpriteB) == 0x42B9 && Get32(*m, kSpriteB + 2) == kClip) {
+    Put16(m, kSpriteB, 0x4AFC);
+    m->AddHook(kSpriteB, OnSpriteB);
+  }
+  if (Get16(*m, kSpriteC) == 0x42B9 && Get32(*m, kSpriteC + 2) == kClip) {
+    Put16(m, kSpriteC, 0x4AFC);
+    m->AddHook(kSpriteC, OnSpriteC);
+  }
+  if (Get16(*m, kDotPlot) == 0x4A41 && Get16(*m, kDotPlot + 2) == 0x6BFF) {  // tst.w d1 ; bmi.l
+    Put16(m, kDotPlot, 0x4AFC);
+    m->AddHook(kDotPlot, OnDot);
+  }
+  if (Get16(*m, kSwap) == 0x0CB9 && Get32(*m, kSwap + 2) == kDescA && Get32(*m, kSwap + 6) == kDrawDesc) {
+    Put16(m, kSwap, 0x4AFC);
+    m->AddHook(kSwap, OnSwap);
+  }
+  // Capturing on the stages done (the pilot: $11FE4), in play, the remaster on.
+  const bool capture = remaster::Enabled() && !games::Stock() && InLevel(*m) && Get32(*m, kVblRoutine) == 0x11FE4;
+  remaster_falcon::SetCapturing(capture);
+  if (capture) {
+    uint32_t b0 = Get32(*m, kBuffers), b1 = Get32(*m, kBuffers + 4), b2 = Get32(*m, kBuffers + 8);
+    // The shown buffer itself (what the game still draws: the clean background, restored, plus anything not caught),
+    // with its margins (never drawn into: clean too). (b0, the clean copy, has none of what isn't caught.)
+    (void)b0;
+    m->SetCleanSource(0, b1, b1 + kBufferBytes, 0);
+    m->SetCleanSource(1, b2, b2 + kBufferBytes, 0);
+    m->SetCleanMargin(16);
+  } else {
+    m->SetCleanMargin(0);
+  }
   if (Get32(*m, kFireFollow) == 0x08390001 && Get32(*m, kFireFollow + 4) == kPadB) {
     Put16(m, kFireFollow, 0x4AFC);
     m->AddHook(kFireFollow, OnFireFollow);
@@ -432,6 +705,21 @@ void Update(st::Machine* m) {
   if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) {
     Put16(m, kDivisor, g_50fps && !games::Stock() && InLevel(*m) ? 1 : 2);
   }
+}
+
+void AfterFrame(st::Machine* m) {
+  DecodeQueued(m);
+  if (!remaster_falcon::Capturing()) return remaster_falcon::FrameShown(*m, 0, 0, 0);
+  // The buffer shown and where the display started in it.
+  const uint32_t base = m->FrameBase();
+  uint32_t buffer = 0;
+  for (int i = 1; i < 3; ++i) {
+    uint32_t b = Get32(*m, kBuffers + 4 * uint32_t(i));
+    if (base >= b && base < b + kBufferBytes) buffer = b;
+  }
+  if (!buffer) return remaster_falcon::FrameShown(*m, 0, 0, 0);
+  const uint32_t off = base - buffer;
+  remaster_falcon::FrameShown(*m, buffer, int(off % 640) + m->FrameHscroll(), int(off / 640));
 }
 
 const char* Hint(st::Machine*) { return nullptr; }

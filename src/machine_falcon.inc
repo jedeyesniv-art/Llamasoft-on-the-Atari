@@ -38,7 +38,7 @@ void Machine::SetVideoMode(uint16_t mode) {
 }
 
 void Machine::RenderFalconLine(int y) {
-  if (y == 0) frame_base_ = vbase_latched_;
+  if (y == 0) frame_base_ = vbase_latched_, frame_hscroll_ = hscroll_;
   if (trace_tos) {  // (tests) the line layout as it changes
     static uint32_t last = ~0u;
     static int logged = 0;
@@ -78,6 +78,33 @@ void Machine::RenderFalconLine(int y) {
       }
     }
     for (int x = 0; x < w; ++x) out[x] = pal[idx[x + hscroll_]];
+    if (clean_margin_ > 0) {  // the clean picture's line (Llamazap's remaster)
+      const int m = clean_margin_ & ~15, cw = w + 2 * m;
+      if (clean_.size() != size_t(cw) * size_t(frame_h_)) clean_.assign(size_t(cw) * size_t(frame_h_), 0), clean_line_.assign(size_t(frame_h_), 0);
+      uint32_t* cout = &clean_[size_t(y) * size_t(cw)];
+      const CleanSource* src = nullptr;
+      for (const auto& c : clean_src_)
+        if (c.hi > c.lo && a >= c.lo && a < c.hi) src = &c;
+      clean_line_[size_t(y)] = src ? 1 : 0;
+      if (!src) {
+        for (int x = 0; x < cw; ++x) cout[x] = out[std::clamp(x - m, 0, w - 1)];
+      } else {
+        // From the clean buffer, `m` pixels (m / 16 groups) to the left of where the line starts.
+        static thread_local uint8_t cidx[kMaxFrameW + 96];
+        const uint32_t ca = a + uint32_t(src->shift) - uint32_t(m / 16 * planes * 2);
+        const int cgroups = groups + 2 * (m / 16);
+        for (int g = 0; g < cgroups && g * 16 + 16 <= int(sizeof(cidx)); ++g) {
+          uint16_t p[8];
+          for (int k = 0; k < planes; ++k) p[k] = Get16(&ram_[(ca + uint32_t((g * planes + k) * 2)) & mask]);
+          for (int x = 0; x < 16; ++x) {
+            int s = 15 - x, v = 0;
+            for (int k = 0; k < planes; ++k) v |= ((p[k] >> s) & 1) << k;
+            cidx[g * 16 + x] = uint8_t(v);
+          }
+        }
+        for (int x = 0; x < cw; ++x) cout[x] = pal[cidx[x + hscroll_]];
+      }
+    }
   }
   // With a fine scroll the VIDEL fetches one 16-pixel group more a line (programs take it off the line offset:
   // Llamazap's playfield is 128 words over the line, 120 while scrolled).

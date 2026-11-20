@@ -77,6 +77,7 @@ add_executable(llamatron WIN32
   src/remaster_grid.cpp
   src/remaster_rmc.cpp
   src/remaster_d2.cpp
+  src/remaster_falcon.cpp
   src/settings.cpp
   src/settings_menu.cpp
   src/steam.cpp

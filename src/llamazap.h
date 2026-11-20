@@ -21,6 +21,8 @@ void Update(st::Machine* m);
 bool MenuOpen();
 // The menu over the picture (logical 320 x view_h), when open.
 void DrawOverlay(SDL_Renderer* r, float view_h);
+// After every RunFrame: the remaster's images drawn, the frame shown handed to remaster_falcon.
+void AfterFrame(st::Machine* m);
 // A line over the picture, or null.
 const char* Hint(st::Machine* m);
 

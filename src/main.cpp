@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "input.h"
 #include "llamazap.h"
+#include "remaster_falcon.h"
 #include "crt.h"
 #include "remaster.h"
 #include "remaster_grid.h"
@@ -749,7 +750,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         // Present only new frames, and wait for the next one in between: on a variable refresh display
         // (G-Sync / FreeSync) the screen then refreshes at the game's 50 Hz - smooth. On a fixed 60 Hz one each
         // frame waits for the next refresh as before.
-        if (run == 0 && !remaster::Active()) {
+        if (run == 0 && !remaster::Active() && !remaster_falcon::Active()) {
           double wait = (frames_due + 1 - t * hz) / hz;
           if (wait > 0) SDL_DelayPrecise(uint64_t(std::min(wait, 0.02) * 1e9));
           continue;
@@ -908,6 +909,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         // Sprites met for the first time this frame: their images now (outside the CPU's run), so they are shown
         // the remaster's way from their first frame (the hooks kept them instead of letting the game draw them).
         remaster::DrawQueued(&machine, "first sight");
+        if (mode == input::Mode::kLlamazap) llamazap::AfterFrame(&machine);
         if (g_survey.f) {
           SurveyFrame(machine, frame);
           if (frame >= opt.survey_to) std::fclose(g_survey.f), g_survey.f = nullptr, cpu::g_write_watch = nullptr;
@@ -975,7 +977,17 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       }
       auto shot = opt.shots.find(frame);
       if (shot != opt.shots.end()) SaveShot(machine, shot->second);
-      if (auto ms = opt.mshots.find(frame); ms != opt.mshots.end() && machine.FrameWidth() == st::kScreenW) {
+      if (auto ms = opt.mshots.find(frame); ms != opt.mshots.end() && remaster_falcon::Active()) {
+        std::vector<uint32_t> px;  // the Falcon remaster's frame composed in software (tests)
+        remaster_falcon::LogFrame();
+        remaster_falcon::ComposeSoftware(machine, &px);
+        if (SDL_Surface* s = SDL_CreateSurfaceFrom(machine.FrameWidth(), machine.FrameHeight(), SDL_PIXELFORMAT_ARGB8888,
+                                                  px.data(), machine.FrameWidth() * 4)) {
+          SDL_SaveBMP(s, ms->second.c_str());
+          SDL_DestroySurface(s);
+          LOG("remaster screenshot %s", ms->second.c_str());
+        }
+      } else if (auto ms = opt.mshots.find(frame); ms != opt.mshots.end() && machine.FrameWidth() == st::kScreenW) {
         std::vector<uint32_t> px;
         remaster::LogFrame();
         SetRemasterColour0(machine);
@@ -1035,6 +1047,13 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       SDL_FRect view{0, 0, float(st::kScreenW), float(view_h)};
       if (skipping) {
         // black until the docs screen is there
+      } else if (mode == input::Mode::kLlamazap && remaster_falcon::Active()) {
+        float alpha = 1;
+        if (opt.remaster_alpha >= 0) alpha = opt.remaster_alpha;
+        else if (lock_k > 0) alpha = float((vsyncs + lock_k - 1) % lock_k) / float(lock_k);
+        else if (lock_k == 0) alpha = float(double(SDL_GetTicksNS() - start) / 1e9 * machine.FrameHz() - frames_due);
+        if (menu::IsOpen() || llamazap::MenuOpen()) alpha = 1;  // suspended: the last frame, still
+        remaster_falcon::Draw(renderer, machine, view, alpha);
       } else if (remaster::Active() && shown == texture) {
         // Between the last two frames: how far the clock (or the vsyncs) is into the frame shown last.
         float alpha = 1;
@@ -1517,6 +1536,7 @@ int main(int argc, char** argv) {
   if (c.audio) SDL_DestroyAudioStream(c.audio);
   preview::Shutdown();
   remaster::Shutdown();
+  remaster_falcon::Shutdown();
   if (c.texture) SDL_DestroyTexture(c.texture);
   if (c.texture_wide) SDL_DestroyTexture(c.texture_wide);
   if (c.texture_falcon) SDL_DestroyTexture(c.texture_falcon);
