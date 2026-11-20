@@ -39,7 +39,7 @@ std::vector<Known> KnownGames() {
 
   g = {};
   g.id = "llamatron", g.name = "LLAMATRON", g.program = "TRON1MEG.PRG", g.shared_saves = true;
-  g.mode = input::Mode::kLlamatron, g.body = {0.12f, 0.24f, 0.62f, 1}, g.band = {0.95f, 0.55f, 0.12f, 1};
+  g.mode = input::Mode::kLlamatron, g.body = {0.15f, 0.43f, 0.58f, 1}, g.band = {0.95f, 0.55f, 0.12f, 1};
   g.help = {"LLAMATRON  -  JEFF MINTER, 1991", "",
             "Rescue the beasties. Kill everything else.", "",
             "LEFT STICK / D-PAD   move",

@@ -54,6 +54,10 @@ SCANS = {'llamazap': ('llamazap_d7_3.jpg', (68, 2, 380, 274)),
          'gridrunner': ('super_grid_runner_d7_3.jpg', (50, 4, 400, 272)),
          'photonstorm': ('photon_storm_arc_d7_3.jpg', (52, 199, 398, 456)),
          'rmc': ('revenge_of_the_mutant_camels_1mb_ste_d7.jpg', (40, 0, 406, 280))}
+# The owner's art (art/, 2026-11-20): title pictures for disks with no real label (fitted whole onto their border's colour), and
+# Llamatron's from its ST Format cover disk - the side strip kept, the wordmark scaled up, the rest gone.
+PICTURES = {'hardcore': 'hardcore.png', 'rmctt': 'revenge_of_the_mutant_camels_tt_[llamasoft].png'}
+COMPOSED = {'llamatron': 'llamatron_st_format_d7.jpg'}
 # The signature at the bottom right ("by Yak"); none on our own Settings disk.
 BYLINE = {'settings': ''}
 
@@ -115,6 +119,62 @@ def from_scan(name):
         return None
     return Image.open(path).convert('RGB').crop(box).resize((W * 3 // 4, H * 3 // 4), Image.LANCZOS)  # (the scans'
     # own resolution, near enough: the launcher scales any label)
+
+
+def from_picture(name):
+    """A title picture as the label: fitted whole onto its own border's colour. None if absent."""
+    path = os.path.join(ROOT, 'art', PICTURES[name])
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert('RGB')
+    w, h = W * 3 // 4, H * 3 // 4
+    k = min(w / im.width, h / im.height)
+    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    out = Image.new('RGB', (w, h), im.getpixel((1, 1)))  # (its border's colour: Hardcore's is a dark red)
+    out.paste(im, ((w - im.width) // 2, (h - im.height) // 2))
+    return out
+
+
+def ink(crop, colour, weight):
+    """A printed element as clean ink: how much of `colour` each pixel is (0 paper .. 1 ink), from `weight`
+    (a function of the crop's r, g, b arrays) - scaled up later from this alpha, so edges stay sharp."""
+    a = np.asarray(crop, dtype=np.float32) / 255
+    return np.clip(weight(a[..., 0], a[..., 1], a[..., 2]), 0, 1)
+
+
+def place(canvas, alpha, colour, box):
+    """`alpha` scaled into `box` (x, y, w, h), sharpened (a smoothstep over the upscaled edge), ink of `colour`."""
+    x, y, w, h = box
+    big = Image.fromarray((alpha * 255).astype(np.uint8)).resize((w, h), Image.LANCZOS)
+    a = np.asarray(big, dtype=np.float32) / 255
+    a = np.clip((a - 0.3) / 0.4, 0, 1)
+    a = a * a * (3 - 2 * a)
+    region = np.asarray(canvas.crop((x, y, x + w, y + h)), dtype=np.float32)
+    col = np.array(colour, dtype=np.float32)
+    mixed = region * (1 - a[..., None]) + col * a[..., None]
+    canvas.paste(Image.fromarray(mixed.astype(np.uint8)), (x, y))
+
+
+def from_cover_disk(name):
+    """Llamatron's label from the ST Format cover disk 24: white paper, the side strip ("ST FORMAT COVER DISK 24",
+    navy, read bottom to top) down the left as on the disk, and the red LLAMATRON wordmark scaled up to fill the
+    rest. Semi-authentic (owner 2026-11-20). None if the scan isn't in art/."""
+    path = os.path.join(ROOT, 'art', COMPOSED[name])
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert('RGB')
+    strip = ink(im.crop((58, 197, 90, 456)), None, lambda r, g, b: (0.9 - (r + g + b) / 3) / 0.5)
+    word = ink(im.crop((212, 285, 400, 310)), None, lambda r, g, b: ((r - g) - 0.25) / 0.45)
+    out = Image.new('RGB', (W, H), (243, 242, 244))
+    margin = 22
+    sh = H - 2 * margin
+    sw = round(strip.shape[1] * sh / strip.shape[0])
+    place(out, strip, (38, 34, 110), (margin, margin, sw, sh))
+    left = margin + sw + margin
+    ww = W - left - margin
+    wh = round(word.shape[0] * ww / word.shape[1])
+    place(out, word, (214, 16, 24), (left, (H - wh) // 2, ww, wh))
+    return out
 
 
 def png_bytes(img):
@@ -187,6 +247,10 @@ def main():
     for name, photo, box, touch_up in LABELS:
         path = os.path.join(ROOT, 'res', 'labels', photo)
         img = from_scan(name) if name in SCANS else None
+        if img is None and name in PICTURES:
+            img = from_picture(name)
+        if img is None and name in COMPOSED:
+            img = from_cover_disk(name)
         if img is not None:
             pass
         elif name in SHEETS:

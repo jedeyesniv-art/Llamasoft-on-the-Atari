@@ -8,6 +8,10 @@ for Llamatron, Defender II, Hardcore, Trip-A-Tron, TT Megamix) replace the drawn
 (boxes in the scans) -> 384 x 294 256-colour PNGs in labels.inc (png = true; kLabels, the table, is generated
 too), SDL_LoadPNG_IO in the launcher; disk body colours sampled from the scans (games.cpp). Without the scans
 make_labels.py falls back to the drawn sheets.
+Owner's art (2026-11-20, art/): Hardcore's and the TT Megamix's title screens as their labels (make_labels.py
+PICTURES: fitted whole onto the picture's own border colour, PNG); Llamatron's built from its ST Format cover
+disk 24 scan (COMPOSED: the navy side strip and the red wordmark taken as ink masks - scaled up and sharpened,
+so edges stay crisp - on white paper, the rest gone); its disk the cover disk's blue.
 
 Hobby project, started 2026-10-22 after the Galaga Legions DX port (C:\GalagaRecomp, same owner and toolchain).
 Llamatron is shareware ("please spread this game everywhere", shareware screen at boot); the disk image is still
