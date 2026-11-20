@@ -60,7 +60,9 @@ elease\Llamatron-<ver>-windows.zip (no game
   $24 + 4 x (key - 1), byte 0 negative = not on offer now), cost = the key's number; $4B544 = tokens - 1 (buy
   allowed while key - 1 <= it, $11A34). Stick / R3 pick, B clears, letting go of LB presses the key (a frame with
   none, then 3); the stick's keypad is off until it is let go. Verified: speed up 9 -> 7 tokens, R3 -> SELECT SHIP.
-  Icons: the game's message graphic per type ($2B5C6) - not decoded., keyboard too.
+  Icons (2026-11-20): the test-fly / HUD panel's ($25334..: table $4B4FE + 4 x type, 17, 15 x 10; image from +16,
+  one 16-pixel group a row in 4 planes; drawn with d2 = $A00F: colour = value | $A0, 0 clear), read from RAM in
+  the palette as the menu opens, 1.4x left of the name (wrapped at 9 letters), dimmed with it., keyboard too.
 - Manual check (protection): a random page / paragraph / line / word of the manual (one 7-bit code a word at
   $473EE), the typed word hashed; compared at $1AB9C (d3 vs $5138A), kept in $526C0 and checked again in play
   ($13B44: punishes later). Hook at $1AB9C makes d3 / d4 the wanted code: any word, then OK.

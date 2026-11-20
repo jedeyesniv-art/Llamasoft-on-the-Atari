@@ -193,9 +193,34 @@ constexpr uint32_t kTokens = 0x4B544, kShip = 0x49BA8, kTexts = 0x2C1F2, kDemo =
 
 struct Cell {
   bool offered = false, affordable = false;
+  int type = -1;  // the power-up's type (its name and icon)
   std::string name;
   std::vector<std::string> about;
 };
+// The power-ups' icons (the test-fly panel's, $25334..: table $4B4FE + 4 x type, 17 of them): 15 x 10 pixels, the
+// image from +16, a 16-pixel group a row in 4 planes (8 bytes); the panel draws them with d2 = $A00F = those
+// planes onto the screen's 0-3 and planes 5 and 7 set where drawn: colour = value | $A0, 0 not drawn. Made (in
+// the palette now) as the menu opens.
+constexpr uint32_t kIcons = 0x4B4FE;
+constexpr int kIconTypes = 17, kIconW = 15, kIconH = 10;
+std::vector<uint32_t> g_icon_px[kIconTypes];  // ARGB, 0 = clear
+SDL_Texture* g_icon_tex[kIconTypes] = {};
+bool g_icons_new = false;
+void MakeIcons(const st::Machine& m) {
+  for (int t = 0; t < kIconTypes; ++t) {
+    const uint32_t a = Get32(m, kIcons + 4 * uint32_t(t)) + 16;
+    auto& px = g_icon_px[t];
+    px.assign(kIconW * kIconH, 0);
+    if (a < 0x10000 || a + 80 >= st::kFalconRam) continue;
+    for (int y = 0; y < kIconH; ++y)
+      for (int x = 0; x < kIconW; ++x) {
+        int v = 0;
+        for (int k = 0; k < 4; ++k) v |= ((Get16(m, a + uint32_t(y * 8 + k * 2)) >> (15 - x)) & 1) << k;
+        if (v) px[size_t(y * kIconW + x)] = m.FalconColour(v | 0xA0);
+      }
+  }
+  g_icons_new = true;
+}
 struct Menu {
   bool open = false;
   int pick = 0;  // 1..9, 0 none
@@ -223,6 +248,7 @@ void ReadCells(const st::Machine& m) {
     uint32_t slot = ship + 0x24 + 4 * uint32_t(n - 1);
     c.offered = !(m.Ram()[slot] & 0x80);
     c.affordable = n - 1 <= int16_t(Get16(m, kTokens));
+    c.type = m.Ram()[slot + 1];
     uint32_t text = Get32(m, kTexts + 4 * uint32_t(m.Ram()[slot + 1]));
     if (text < 0x10000 || text + 300 >= st::kFalconRam) continue;
     std::string line;
@@ -265,6 +291,7 @@ bool MenuFrame(st::Machine* m, const pad::State& p, bool ship_select) {
   if (!g_menu.open) {
     if (!lb_down || !play || ship_select) return false;
     g_menu.open = true, g_menu.pick = 0;
+    MakeIcons(*m);
     if (!m->sandbox) LOG("llamazap: power-up menu");
   }
   ReadCells(*m);
@@ -297,6 +324,7 @@ struct Survey {
   uint32_t base[3] = {};
   std::map<uint32_t, SurveyRow> rows;
   std::map<uint32_t, int> routines;  // VBL routine -> frames
+  st::Machine* m = nullptr;
 } g_survey;
 int BufferOf(uint32_t a) {
   for (int i = 0; i < 3; ++i)
@@ -311,6 +339,18 @@ std::map<uint32_t, int> g_survey_logged;
 void SurveyBlit(uint32_t dst, uint32_t src, int xcount, int ycount, uint32_t pc) {
   int b = BufferOf(dst);
   if (b < 0) return;
+  if (SDL_getenv("LLAMAZAP_SURVEY_CALLERS")) {  // tests: jobs into a rectangle of the buffer, with the stack
+    static int n = 0;
+    uint32_t off = dst - g_survey.base[b];
+    int line = int(off / 640), byte = int(off % 640);
+    if (line >= 180 && line < 230 && byte >= 560 && n++ < 40) {
+      uint32_t sp = cpu::Get(cpu::A7);
+      st::Machine* mm = g_survey.m;
+      if (!mm) return;
+      LOG("panel blit pc %06X line %d byte %d src %06X %d x %d; stack %06X %06X %06X %06X %06X %06X", pc, line, byte, src,
+          xcount, ycount, Get32(*mm, sp), Get32(*mm, sp + 4), Get32(*mm, sp + 8), Get32(*mm, sp + 12), Get32(*mm, sp + 16), Get32(*mm, sp + 20));
+    }
+  }
   if (g_survey_logged[pc & ~15u]++ < 12) {
     int sb = BufferOf(src);
     uint32_t off = dst - g_survey.base[b];
@@ -323,6 +363,7 @@ void SurveyBlit(uint32_t dst, uint32_t src, int xcount, int ycount, uint32_t pc)
 void SurveyFrame(st::Machine* m) {
   Survey& s = g_survey;
   if (s.from < 0 || m->sandbox) return;
+  s.m = m;
   ++s.frame;
   if (s.frame == s.from) {
     for (int i = 0; i < 3; ++i) s.base[i] = Get32(*m, kBuffers + 4 * uint32_t(i));
@@ -795,6 +836,17 @@ void DrawOverlay(SDL_Renderer* r, float view_h) {
   auto centred = [&](float cx, float y, const std::string& t, uint8_t cr, uint8_t cg, uint8_t cb) {
     text(cx - float(t.size()) * 4, y, t, cr, cg, cb);
   };
+  if (g_icons_new) {  // (made from the machine as the menu opened)
+    for (int t = 0; t < kIconTypes; ++t) {
+      SDL_Texture*& tex = g_icon_tex[t];
+      if (!tex) {
+        tex = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, kIconW, kIconH);
+        if (tex) SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND), SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+      }
+      if (tex && g_icon_px[t].size() == size_t(kIconW * kIconH)) SDL_UpdateTexture(tex, nullptr, g_icon_px[t].data(), kIconW * 4);
+    }
+    g_icons_new = false;
+  }
   constexpr float kCellW = 100, kCellH = 36, kGap = 6, kW = 3 * kCellW + 2 * kGap, kH = 196;
   const float x0 = (st::kScreenW - kW) / 2, top = std::max(2.0f, (view_h - kH) / 2);
   box(0, 0, st::kScreenW, view_h, 0, 0, 0, 110);  // the game dimmed behind
@@ -816,7 +868,14 @@ void DrawOverlay(SDL_Renderer* r, float view_h) {
       std::string cost = std::to_string(n) + (n == 1 ? " TOKEN" : " TOKENS");
       text(x + kCellW - 3 - float(cost.size()) * 8, y + 3, cost, c.affordable ? 120 : 220, c.affordable ? 200 : 80,
            c.affordable ? 120 : 80);
-      // The name, wrapped at 12 letters.
+      // The icon on the left (1.4x), dimmed with the name; the name beside it, wrapped at 9 letters.
+      if (c.type >= 0 && c.type < kIconTypes) {
+        if (SDL_Texture* t = g_icon_tex[c.type]) {
+          SDL_SetTextureColorMod(t, v, v, v);
+          SDL_FRect d{x + 4, y + 15, kIconW * 1.4f, kIconH * 1.4f};
+          SDL_RenderTexture(r, t, nullptr, &d);
+        }
+      }
       std::vector<std::string> lines(1);
       std::string word;
       for (size_t i = 0; i <= c.name.size(); ++i) {
@@ -826,12 +885,11 @@ void DrawOverlay(SDL_Renderer* r, float view_h) {
           continue;
         }
         if (word.empty()) continue;
-        if (!lines.back().empty() && lines.back().size() + 1 + word.size() > 12) lines.emplace_back();
-        lines.back() += (lines.back().empty() ? "" : " ") + word.substr(0, 12);
+        if (!lines.back().empty() && lines.back().size() + 1 + word.size() > 9) lines.emplace_back();
+        lines.back() += (lines.back().empty() ? "" : " ") + word.substr(0, 9);
         word.clear();
       }
-      for (size_t i = 0; i < lines.size() && i < 2; ++i)
-        centred(x + kCellW / 2, y + 14 + float(i) * 10, lines[i], v, v, v);
+      for (size_t i = 0; i < lines.size() && i < 2; ++i) text(x + 27, y + 14 + float(i) * 10, lines[i], v, v, v);
     }
   float y = top + 16 + 3 * (kCellH + kGap) + 2;
   const Cell& c = g_menu.cells[g_menu.pick];
