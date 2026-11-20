@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cctype>
 #include <cstdio>
+#include <ctime>
 #include <vector>
 
 #include "crt.h"
@@ -10,6 +12,7 @@
 #include "log.h"
 #include "glyphs.h"
 #include "remap.h"
+#include "savestate.h"
 #include "settings.h"
 #include "steam.h"
 
@@ -17,9 +20,19 @@ namespace menu {
 namespace {
 
 std::string g_steam_status;  // ADD TO STEAM's last outcome (shown on its row)
+// Savestates: a save / load asked for (main takes it), the last outcome, and what the panel shows of the slot.
+StateRequest g_state_request;
+bool g_state_requested = false;
+std::string g_state_status;
+std::function<bool(int, savestate::Info*)> g_state_peek;
+int g_peeked_slot = -1;  // the slot g_peek / g_thumb show (-1: look again)
+bool g_peek_ok = false;
+savestate::Info g_peek;
+SDL_Texture* g_thumb = nullptr;
 
-enum class Kind { kToggle, kSlider, kChoice, kFullscreen, kResetCrt, kInfo, kSteam };  // kInfo: a line to read (choices[0])
+enum class Kind { kToggle, kSlider, kChoice, kFullscreen, kResetCrt, kInfo, kSteam, kSaveState, kLoadState };  // kInfo: a line to read (choices[0])
 // kSteam: ADD TO STEAM (steam.h), done on A; the outcome shown on the row.
+// kSaveState / kLoadState: the slot (state_slot) saved / loaded on A - main does it (TakeStateRequest).
 
 struct Item {
   const char* section;  // "general", "crt" or a game id
@@ -37,10 +50,11 @@ struct Section {
   const char* title;
 };
 
-// In this order: general, the games, the game's controls (in a game only), the CRT looks. Every section but
-// GENERAL folds away ([+] / [-]).
+// Every section folds away ([+] / [-]). The Settings disk lists them in this order (not the save states or the
+// controls: those are a game's); in a game the order is Open's: save states, the game's own, its controls, then
+// GENERAL and the CRT looks (owner 2026-11-20: the most used nearest the top).
 const Section kSections[] = {
-    {"general", "GENERAL"},       {"llamatron", "LLAMATRON"},
+    {"states", "SAVE STATES"},    {"general", "GENERAL"},       {"llamatron", "LLAMATRON"},
     {"gridrunner", "SUPER GRIDRUNNER"}, {"photonstorm", "PHOTON STORM"}, {"andes", "ANDES ATTACK"},
     {"rmc", "MUTANT CAMELS"},
     {"defender2", "DEFENDER 2"},  {"hardcore", "HARDCORE"},  {"llamazap", "LLAMAZAP"},
@@ -52,63 +66,36 @@ const Section kSections[] = {
 // The defaults here must match the ones where each setting is read.
 const std::vector<Item>& Items() {
   static const std::vector<Item> items = {
-      {"general", "REMASTER", "remaster", Kind::kToggle, 1, 0, 1, 1, {},
-       "Sprites drawn smooth by the PC at 4x, sliding between frames (F8). Off: the ST's own picture."},
+      {"states", "SLOT", "state_slot", Kind::kChoice, 0, 0, 3, 1, {"1", "2", "3", "4"},
+       "Which of the game's four slots SAVE STATE / LOAD STATE use (and F2 / F4 on the keyboard)."},
+      {"states", "SAVE STATE", "", Kind::kSaveState, 0, 0, 1, 1, {},
+       "Press {A}: the game as it is now goes into this slot (what was there goes). F2 on the keyboard."},
+      {"states", "LOAD STATE", "", Kind::kLoadState, 0, 0, 1, 1, {},
+       "Press {A}: back to the moment in this slot, and play on from there. F4 on the keyboard."},
+
       {"general", "CRT LOOK", "crt", Kind::kChoice, 2, 0, 2, 1, {"OFF", "CRT+", "CRT++"},
        "CRT+: scanlines, mask and glow, like a TV of the time. CRT++: psychedelic trails on top (F9). In a game: that game's own."},
-      {"general", "RUN-AHEAD", "remaster_ahead", Kind::kChoice, 2, 0, 3, 1, {"OFF", "1 FRAME", "2 FRAMES", "3 FRAMES"},
-       "Remaster only: runs the game ahead to cut the delay between the pad and the picture (F7). 2 is the sweet spot."},
       {"general", "VOLUME", "volume", Kind::kSlider, 1, 0, 1, 0.05, {},
        "Master volume for every game (0.5 is about half as loud)."},
-      {"general", "EVEN OUT GAME VOLUMES", "volume_normalise", Kind::kToggle, 1, 0, 1, 1, {},
-       "Every game played at the same loudness (the loud ones turned down). Off: each as loud as the original."},
-      {"general", "FULLSCREEN", "", Kind::kFullscreen, 1, 0, 1, 1, {}, "Fullscreen or a window (F11, Alt+Enter)."},
-      {"general", "EXCLUSIVE FULLSCREEN", "fullscreen_exclusive", Kind::kToggle, 0, 0, 1, 1, {},
-       "Switches the display to a 50 / 100 Hz mode for even motion, at the cost of a blink when switching away.",
-       true},
-      {"general", "BUTTON NAMES", "button_names", Kind::kChoice, 0, 0, 3, 1, {"AUTO", "XBOX", "PLAYSTATION", "NINTENDO"},
-       "How buttons are named on these pages and the hints: AUTO follows the pad (PlayStation and Switch pads get "
-       "their own names)."},
+      {"general", "REMASTER", "remaster", Kind::kToggle, 1, 0, 1, 1, {},
+       "Sprites drawn smooth by the PC at 4x, sliding between frames (F8). Off: the ST's own picture."},
+      {"general", "RUN-AHEAD", "remaster_ahead", Kind::kChoice, 2, 0, 3, 1, {"OFF", "1 FRAME", "2 FRAMES", "3 FRAMES"},
+       "Remaster only: runs the game ahead to cut the delay between the pad and the picture (F7). 2 is the sweet spot."},
       {"general", "RUMBLE", "rumble", Kind::kToggle, 1, 0, 1, 1, {},
        "The pad rumbles when you lose a life (long) and on smart bombs (short). Trip-A-Tron has its own, on the "
        "music's beats (its section)."},
+      {"general", "FULLSCREEN", "", Kind::kFullscreen, 1, 0, 1, 1, {}, "Fullscreen or a window (F11, Alt+Enter)."},
+      {"general", "EVEN OUT GAME VOLUMES", "volume_normalise", Kind::kToggle, 1, 0, 1, 1, {},
+       "Every game played at the same loudness (the loud ones turned down). Off: each as loud as the original."},
+      {"general", "BUTTON NAMES", "button_names", Kind::kChoice, 0, 0, 3, 1, {"AUTO", "XBOX", "PLAYSTATION", "NINTENDO"},
+       "How buttons are named on these pages and the hints: AUTO follows the pad (PlayStation and Switch pads get "
+       "their own names)."},
+      {"general", "EXCLUSIVE FULLSCREEN", "fullscreen_exclusive", Kind::kToggle, 0, 0, 1, 1, {},
+       "Switches the display to a 50 / 100 Hz mode for even motion, at the cost of a blink when switching away.",
+       true},
       {"general", "ADD TO STEAM", "", Kind::kSteam, 0, 0, 1, 1, {},
        "Press {A}: this program becomes a game in your Steam library, with its own library art. Started from Steam "
        "(Steam Deck), it adds the art to the shortcut you made. Adding a new shortcut needs Steam closed; Steam shows the art once restarted."},
-
-      {"crt", "SCANLINES", "crt_scanlines", Kind::kSlider, 0.45, 0, 1, 0.05, {}, "How dark the gaps between the lines are."},
-      {"crt", "BEAM, DARK COLOURS", "crt_beam_min", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "How thick the lines of dark colours are."},
-      {"crt", "BEAM, BRIGHT COLOURS", "crt_beam_max", Kind::kSlider, 1.0, 0, 1, 0.05, {}, "How thick the lines of bright colours are."},
-      {"crt", "SOFTNESS", "crt_blur", Kind::kSlider, 0.4, 0, 1, 0.05, {}, "Horizontal softness of the beam (0 = sharp pixels)."},
-      {"crt", "PHOSPHOR MASK", "crt_mask", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "The red, green and blue stripes of the tube."},
-      {"crt", "MASK BLEED", "crt_mask_bleed", Kind::kSlider, 0.5, 0, 1, 0.05, {}, "How much the stripes blend together."},
-      {"crt", "GLOW", "crt_halation", Kind::kSlider, 0.04, 0, 0.2, 0.01, {}, "The light bright things spill around them (halation)."},
-      {"crt", "GLOW SIZE", "crt_halation_size", Kind::kSlider, 0.98, 0, 1, 0.02, {}, "A tight halo (0) or a long, soft tail (1)."},
-      {"crt", "CURVATURE", "crt_curvature", Kind::kSlider, 0.02, 0, 0.15, 0.01, {}, "A curved tube (0 = flat)."},
-      {"crt", "BRIGHTNESS", "crt_brightness", Kind::kSlider, 0.01, -0.3, 0.3, 0.01, {}, "Overall brightness."},
-      {"crt", "CONTRAST", "crt_contrast", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "Deeper blacks and brighter whites."},
-      {"crt", "SATURATION", "crt_saturation", Kind::kSlider, 0.95, 0, 1.5, 0.05, {}, "How strong the colours are."},
-      {"crt", "WARMTH", "crt_temperature", Kind::kSlider, 0.3, -1, 1, 0.1, {}, "Cool blue (-1) to warm (1)."},
-      {"crt", "BLOOM", "crt_overflow", Kind::kSlider, 0.85, 0, 1, 0.05, {}, "Very bright colours spilling into white."},
-      {"crt", "RESET THE CRT LOOK", "", Kind::kResetCrt, 0, 0, 1, 1, {}, "Press {A}: every CRT setting back to its default."},
-      {"crtpp", "TRAILS", "crt_psy_trails", Kind::kSlider, 0.9, 0, 2, 0.05, {}, "CRT++: how strongly the trails show."},
-      {"crtpp", "TRAIL LENGTH", "crt_psy_length", Kind::kSlider, 0.4, 0, 1, 0.01, {}, "Seconds for a trail to fade to half."},
-      {"crtpp", "TRAIL ZOOM", "crt_psy_zoom", Kind::kSlider, 0.25, -2, 2, 0.05, {},
-       "Trails stream out from the centre (in: below 0)."},
-      {"crtpp", "TRAIL TWIST", "crt_psy_twist", Kind::kSlider, 0, -2, 2, 0.05, {}, "Trails swirl round the centre."},
-      {"crtpp", "TRAIL COLOUR", "crt_psy_hue", Kind::kSlider, 0.66, 0, 1, 0.02, {},
-       "The colour trails turn into: red 0, yellow .17, green .33, cyan .5, blue .66, magenta .83."},
-      {"crtpp", "TRAIL TINT", "crt_psy_tint", Kind::kSlider, 0.3, 0, 1, 0.05, {}, "How quickly trails take that colour."},
-      {"crtpp", "COLOUR CYCLE", "crt_psy_cycle", Kind::kSlider, 0, 0, 3, 0.05, {}, "Trails run through the rainbow as they age (turns a second)."},
-      {"crtpp", "TRAIL THRESHOLD", "crt_psy_threshold", Kind::kSlider, 0.1, 0, 1, 0.05, {},
-       "Only things brighter than this leave trails (higher: dark backgrounds don't)."},
-      {"crtpp", "TRAIL FEED", "crt_psy_gain", Kind::kSlider, 1, 0, 3, 0.1, {}, "How bright things are as they enter the trails."},
-      {"crtpp", "GLOW BOOST", "crt_psy_glow", Kind::kSlider, 4, 1, 15, 0.5, {}, "The CRT glow, multiplied."},
-      {"crtpp", "COLOUR BLEED", "crt_psy_bleed", Kind::kSlider, 0.5, 0, 3, 0.1, {}, "Colour smeared sideways, like a composite TV."},
-      {"crtpp", "SATURATION BOOST", "crt_psy_saturation", Kind::kSlider, 1.3, 0.5, 2.5, 0.05, {}, "The CRT saturation, multiplied."},
-      {"crtpp", "KEEP COLOURS", "crt_psy_keep", Kind::kSlider, 1, 0, 1, 0.05, {},
-       "1: trails only where the picture is dark, things keep their own colour. 0: trails over everything."},
-      {"crtpp", "RESET CRT++", "", Kind::kResetCrt, 0, 0, 1, 1, {}, "Press {A}: every CRT++ setting back to its default."},
 
       {"llamatron", "ANALOG AIM", "analog_aim", Kind::kToggle, 0, 0, 1, 1, {},
        "Twin-stick shots in any direction (off: the original 8). Also {RB} on the title screen."},
@@ -119,28 +106,15 @@ const std::vector<Item>& Items() {
 
       {"gridrunner", "SHIP SPEED", "grid_stick_speed", Kind::kSlider, 6.0, 2, 12, 0.5, {},
        "Pixels a frame with the stick pushed all the way."},
-      {"gridrunner", "STICK CURVE", "grid_stick_curve", Kind::kSlider, 2, 1, 4, 0.25, {},
-       "1 = straight; higher = finer control near the centre, the same top speed."},
-      {"gridrunner", "STICK DEAD ZONE", "grid_stick_deadzone", Kind::kSlider, 0.15, 0, 0.5, 0.05, {},
-       "How far the stick moves before the ship does."},
-      {"gridrunner", "EASE IN", "grid_stick_smooth", Kind::kSlider, 2, 0, 6, 0.5, {},
-       "Frames the ship takes to reach the stick's speed (0 = at once)."},
-      {"gridrunner", "EASE OUT", "grid_stick_stop", Kind::kSlider, 1, 0, 6, 0.5, {},
-       "Frames the ship takes to stop or turn back (0 = at once)."},
-      {"gridrunner", "D-PAD SPEED", "grid_dpad_speed", Kind::kSlider, 1, 0.5, 4, 0.5, {}, "Pixels a frame on the d-pad."},
+      {"gridrunner", "RESTART WHERE YOU DIED", "grid_unlock_level_died", Kind::kToggle, 1, 0, 1, 1, {},
+       "The level select starts where you died (the original: the level before, from level 6)."},
       {"gridrunner", "SWAP NOSECONE FLICK", "grid_fire_mode_swap", Kind::kToggle, 0, 0, 1, 1, {},
        "Which way a flick of the right stick turns the nosecone shot."},
-      {"gridrunner", "50 FRAMES A SECOND", "grid_50fps", Kind::kToggle, 1, 0, 1, 1, {},
-       "Draws every frame in play (the original: 25). The game's speed is the same."},
-      {"gridrunner", "UNLOCK THE LEVEL YOU DIED ON", "grid_unlock_level_died", Kind::kToggle, 1, 0, 1, 1, {},
-       "The level select starts where you died (the original: the level before, from level 6)."},
       {"gridrunner", "STOCK ST", "gridrunner_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (25 frames a second at best), no remaster. Your controls stay. For purists and the brave.", true},
 
       {"photonstorm", "360 TWIN STICK", "ps_analog", Kind::kToggle, 1, 0, 1, 1, {},
        "Steer and aim in any direction, the right stick aims and fires (off: the original 16). Also {Y} on the title."},
-      {"photonstorm", "50 FRAMES A SECOND", "photonstorm_50fps", Kind::kToggle, 1, 0, 1, 1, {},
-       "Draws every frame in play and on the attract screens (the original: 25). The game's speed is the same.", true},
       {"photonstorm", "STOCK ST", "photonstorm_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (25 frames a second), no remaster. Your controls stay. For purists and the brave.", true},
 
@@ -148,14 +122,6 @@ const std::vector<Item>& Items() {
        "Arcade: left / right only turn round, {RT} thrust (squeeze = speed), {X} / {Y} reverse. Stick thrust: the push moves you."},
       {"andes", "ALTITUDE", "andes_altitude", Kind::kChoice, 1, 0, 1, 1, {"DIRECT", "ORIGINAL"},
        "DIRECT: the stick moves the ship at the speed below. ORIGINAL: the stick is the mouse, as the game was made."},
-      {"andes", "ALTITUDE SPEED", "andes_stick_speed", Kind::kSlider, 3, 1, 8, 0.5, {},
-       "Pixels a frame up or down with the stick pushed all the way."},
-      {"andes", "ALTITUDE CURVE", "andes_stick_curve", Kind::kSlider, 1.5, 1, 3, 0.25, {},
-       "1 = straight; higher = finer control near the centre."},
-      {"andes", "DIRECT THRUST", "andes_direct_thrust", Kind::kToggle, 0, 0, 1, 1, {},
-       "Stick thrust controls: speed follows how far the stick is pushed (off: the game's own thrust and glide).", true},
-      {"andes", "DIRECT THRUST EASE", "andes_thrust_ease", Kind::kSlider, 0.5, 0.1, 3, 0.1, {},
-       "With direct thrust: how quickly the speed follows the stick.", true},
       {"andes", "STOCK ST", "andes_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (13 to 19 frames a second in play), no remaster. Your controls stay. For purists and the brave.", true},
 
@@ -163,8 +129,6 @@ const std::vector<Item>& Items() {
        "Arcade: left / right only turn round, {RT} thrust (squeeze = speed), {X} / {Y} reverse. Stick thrust: the push moves you."},
       {"defender2", "60 HZ (ARCADE SPEED)", "defender2_60hz", Kind::kToggle, 1, 0, 1, 1, {},
        "The game's 60 Hz mode, as the arcade (its speeds adjusted). Off: 50 Hz.", true},
-      {"defender2", "50 FRAMES A SECOND", "d2_50fps", Kind::kToggle, 1, 0, 1, 1, {},
-       "Draws every frame in play (the original: 25). The game's speed is the same.", true},
       {"defender2", "STOCK ST", "defender2_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (25 frames a second), no remaster. Your controls stay. For purists and the brave.", true},
 
@@ -178,14 +142,8 @@ const std::vector<Item>& Items() {
       {"hardcore", "STOCK ST", "hardcore_stock", Kind::kToggle, 0, 0, 1, 1, {},
        "The ST as it was: 8 MHz on every screen, drawing at the game's own rate (15 to 20 frames a second in play), no remaster. Your controls stay. For purists and the brave.", true},
 
-      {"llamazap", "50 FRAMES A SECOND", "llamazap_50fps", Kind::kToggle, 1, 0, 1, 1, {},
-       "Draws every frame on every screen (the original: 25 a second). The game's speed is the same."},
-      {"llamazap", "TWIN STICK (LLAMATRON STAGES)", "llamazap_twin_stick", Kind::kToggle, 1, 0, 1, 1, {},
+      {"llamazap", "TWIN STICK (LLAMATRON)", "llamazap_twin_stick", Kind::kToggle, 1, 0, 1, 1, {},
        "Llamatronic and Son of Llamatron: the right stick aims the shots (off: the pad's A / C turn them round)."},
-      {"llamazap", "STEREO", "llamazap_stereo", Kind::kToggle, 1, 0, 1, 1, {},
-       "The music's voices left and right as the game pans them (the Falcon's own stereo). Off: mono."},
-      {"llamazap", "EFFECTS VOLUME", "llamazap_fx_volume", Kind::kSlider, 1, 0, 1, 0.05, {},
-       "The sound effects against the music. 1 = as the game plays them (about 10 dB over the music; 4-bit, recorded hot)."},
       {"llamazap", "START AT STAGE", "llamazap_stage", Kind::kChoice, 0, 0, 25, 1,
        {"THE GAME'S OWN", "1 BEASTIES: CAMELS", "2 BEASTIES: SPACE SHEEP", "3 BEASTIES: GET YOUR GOAT",
         "4 BEASTIES: CAMELS RETURN", "5 LLAMATRONIC", "6 AIR/SEA: CHASE", "7 AIR/SEA: SINKING FEELING",
@@ -195,27 +153,30 @@ const std::vector<Item>& Items() {
         "20 LLAMA IN A JETPAC", "21 SON OF LLAMATRON", "22 EDGE OF TIME", "23 CONTINUAL HASSLE",
         "24 MEET YOUR NEMESIS", "25 FINAL FIGHT"},
        "Any level you pick in the game starts at this stage instead, then carries on in order (all 25 of them)."},
+      {"llamazap", "EFFECTS VOLUME", "llamazap_fx_volume", Kind::kSlider, 1, 0, 1, 0.05, {},
+       "The sound effects against the music. 1 = as the game plays them (about 10 dB over the music; 4-bit, recorded hot)."},
+      {"llamazap", "STEREO", "llamazap_stereo", Kind::kToggle, 1, 0, 1, 1, {},
+       "The music's voices left and right as the game pans them (the Falcon's own stereo). Off: mono."},
 
+      {"tripatron", "REACT TO MUSIC", "trip_music", Kind::kChoice, 0, 0, 2, 1, {"OFF", "PULSE", "FULL"},
+       "Follows whatever the PC is playing ({L3} / F12). Full also changes palettes and effects on the beat."},
+      {"tripatron", "CALM FLASHES", "trip_calm_background", Kind::kToggle, 1, 0, 1, 1, {},
+       "Background flashes and strobes softened into slow pulses."},
       {"tripatron", "LIGHT SPEED", "trip_stick_speed", Kind::kSlider, 5, 1, 12, 0.5, {},
        "How fast the left stick moves the light source."},
-      {"tripatron", "STICK CURVE", "trip_stick_curve", Kind::kSlider, 2, 1, 4, 0.25, {},
-       "1 = straight; higher = finer control near the centre."},
-      {"tripatron", "STICK DEAD ZONE", "trip_stick_deadzone", Kind::kSlider, 0.15, 0, 0.5, 0.05, {},
-       "How far the stick moves before the light does."},
       {"tripatron", "SPIROGRAPH SIZE", "trip_spiro_size", Kind::kSlider, 0.9, 0.2, 1, 0.05, {},
        "How far the right stick reaches across the screen."},
       {"tripatron", "FLOW", "trip_flow", Kind::kSlider, 0, 0, 1, 0.1, {},
        "Inertia on the left stick: 0 = direct; higher = the light glides into and out of its moves."},
       {"tripatron", "PAINT PRESSURE", "trip_pressure", Kind::kToggle, 1, 0, 1, 1, {},
        "{RT}'s squeeze sets how thickly patterns flow: a light touch for sparse pulses, full for a stream."},
+      {"tripatron", "RUMBLE ON BEATS", "trip_rumble", Kind::kToggle, 1, 0, 1, 1, {},
+       "With REACT TO MUSIC on: a light rumble on each beat."},
       {"tripatron", "GYRO", "trip_gyro", Kind::kToggle, 0, 0, 1, 1, {},
        "Turn the pad to move the light, like a pen (pads with a gyro: Steam Deck, PlayStation, Switch)."},
       {"tripatron", "GYRO SPEED", "trip_gyro_speed", Kind::kSlider, 1, 0.2, 3, 0.1, {},
        "How far the light moves as the pad turns."},
-      {"tripatron", "RUMBLE ON BEATS", "trip_rumble", Kind::kToggle, 1, 0, 1, 1, {},
-       "With REACT TO MUSIC on: a light rumble on each beat."},
-      {"tripatron", "CALM FLASHES", "trip_calm_background", Kind::kToggle, 1, 0, 1, 1, {},
-       "Background flashes and strobes softened into slow pulses."},
+
       {"tripkeys", "LEFT STICK", "", Kind::kInfo, 0, 0, 1, 1, {"MOVE THE LIGHT"},
        "Moves the light source (LIGHT SPEED, STICK CURVE and FLOW above). On the panel: the pointer."},
       {"tripkeys", "RIGHT STICK", "", Kind::kInfo, 0, 0, 1, 1, {"SPIROGRAPH"},
@@ -264,8 +225,41 @@ const std::vector<Item>& Items() {
        "For the small buttons. In the tool screens the d-pad nudges the pointer a pixel at a time."},
       {"tripkeys", "PANEL: {Y}", "", Kind::kInfo, 0, 0, 1, 1, {"ESC"},
        "Puts the panel away; leaves the keyboard-driven screens (KML editor, Starfield edit)."},
-      {"tripatron", "REACT TO MUSIC", "trip_music", Kind::kChoice, 0, 0, 2, 1, {"OFF", "PULSE", "FULL"},
-       "Follows whatever the PC is playing ({L3} / F12). Full also changes palettes and effects on the beat."},
+
+      {"crt", "SCANLINES", "crt_scanlines", Kind::kSlider, 0.45, 0, 1, 0.05, {}, "How dark the gaps between the lines are."},
+      {"crt", "BEAM, DARK COLOURS", "crt_beam_min", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "How thick the lines of dark colours are."},
+      {"crt", "BEAM, BRIGHT COLOURS", "crt_beam_max", Kind::kSlider, 1.0, 0, 1, 0.05, {}, "How thick the lines of bright colours are."},
+      {"crt", "SOFTNESS", "crt_blur", Kind::kSlider, 0.4, 0, 1, 0.05, {}, "Horizontal softness of the beam (0 = sharp pixels)."},
+      {"crt", "PHOSPHOR MASK", "crt_mask", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "The red, green and blue stripes of the tube."},
+      {"crt", "MASK BLEED", "crt_mask_bleed", Kind::kSlider, 0.5, 0, 1, 0.05, {}, "How much the stripes blend together."},
+      {"crt", "GLOW", "crt_halation", Kind::kSlider, 0.04, 0, 0.2, 0.01, {}, "The light bright things spill around them (halation)."},
+      {"crt", "GLOW SIZE", "crt_halation_size", Kind::kSlider, 0.98, 0, 1, 0.02, {}, "A tight halo (0) or a long, soft tail (1)."},
+      {"crt", "CURVATURE", "crt_curvature", Kind::kSlider, 0.02, 0, 0.15, 0.01, {}, "A curved tube (0 = flat)."},
+      {"crt", "BRIGHTNESS", "crt_brightness", Kind::kSlider, 0.01, -0.3, 0.3, 0.01, {}, "Overall brightness."},
+      {"crt", "CONTRAST", "crt_contrast", Kind::kSlider, 0.35, 0, 1, 0.05, {}, "Deeper blacks and brighter whites."},
+      {"crt", "SATURATION", "crt_saturation", Kind::kSlider, 0.95, 0, 1.5, 0.05, {}, "How strong the colours are."},
+      {"crt", "WARMTH", "crt_temperature", Kind::kSlider, 0.3, -1, 1, 0.1, {}, "Cool blue (-1) to warm (1)."},
+      {"crt", "BLOOM", "crt_overflow", Kind::kSlider, 0.85, 0, 1, 0.05, {}, "Very bright colours spilling into white."},
+      {"crt", "RESET THE CRT LOOK", "", Kind::kResetCrt, 0, 0, 1, 1, {}, "Press {A}: every CRT setting back to its default."},
+
+      {"crtpp", "TRAILS", "crt_psy_trails", Kind::kSlider, 0.9, 0, 2, 0.05, {}, "CRT++: how strongly the trails show."},
+      {"crtpp", "TRAIL LENGTH", "crt_psy_length", Kind::kSlider, 0.4, 0, 1, 0.01, {}, "Seconds for a trail to fade to half."},
+      {"crtpp", "TRAIL ZOOM", "crt_psy_zoom", Kind::kSlider, 0.25, -2, 2, 0.05, {},
+       "Trails stream out from the centre (in: below 0)."},
+      {"crtpp", "TRAIL TWIST", "crt_psy_twist", Kind::kSlider, 0, -2, 2, 0.05, {}, "Trails swirl round the centre."},
+      {"crtpp", "TRAIL COLOUR", "crt_psy_hue", Kind::kSlider, 0.66, 0, 1, 0.02, {},
+       "The colour trails turn into: red 0, yellow .17, green .33, cyan .5, blue .66, magenta .83."},
+      {"crtpp", "TRAIL TINT", "crt_psy_tint", Kind::kSlider, 0.3, 0, 1, 0.05, {}, "How quickly trails take that colour."},
+      {"crtpp", "COLOUR CYCLE", "crt_psy_cycle", Kind::kSlider, 0, 0, 3, 0.05, {}, "Trails run through the rainbow as they age (turns a second)."},
+      {"crtpp", "TRAIL THRESHOLD", "crt_psy_threshold", Kind::kSlider, 0.1, 0, 1, 0.05, {},
+       "Only things brighter than this leave trails (higher: dark backgrounds don't)."},
+      {"crtpp", "TRAIL FEED", "crt_psy_gain", Kind::kSlider, 1, 0, 3, 0.1, {}, "How bright things are as they enter the trails."},
+      {"crtpp", "GLOW BOOST", "crt_psy_glow", Kind::kSlider, 4, 1, 15, 0.5, {}, "The CRT glow, multiplied."},
+      {"crtpp", "COLOUR BLEED", "crt_psy_bleed", Kind::kSlider, 0.5, 0, 3, 0.1, {}, "Colour smeared sideways, like a composite TV."},
+      {"crtpp", "SATURATION BOOST", "crt_psy_saturation", Kind::kSlider, 1.3, 0.5, 2.5, 0.05, {}, "The CRT saturation, multiplied."},
+      {"crtpp", "KEEP COLOURS", "crt_psy_keep", Kind::kSlider, 1, 0, 1, 0.05, {},
+       "1: trails only where the picture is dark, things keep their own colour. 0: trails over everything."},
+      {"crtpp", "RESET CRT++", "", Kind::kResetCrt, 0, 0, 1, 1, {}, "Press {A}: every CRT++ setting back to its default."},
   };
   return items;
 }
@@ -307,11 +301,42 @@ std::string OpenKey(int s) {
   if (g_game.empty()) return std::string("panel_disk_open_") + kSections[s].id;
   return std::string("panel_open_") + (IsSection(s, OwnSection().c_str()) ? "game" : kSections[s].id);
 }
-bool Foldable(int s) { return !IsSection(s, "general"); }
+bool Foldable(int) { return true; }  // (GENERAL too, since 2026-11-20: closed until opened)
 bool SectionOpen(int s) {
   if (!Foldable(s)) return true;
-  bool def = !g_game.empty() && (IsSection(s, OwnSection().c_str()) || (g_game == "tripatron" && IsSection(s, "tripkeys")));
+  // Open at first in a game: its own section and the save states (Trip-A-Tron: its controls list too).
+  bool def = !g_game.empty() && (IsSection(s, OwnSection().c_str()) || IsSection(s, "states") ||
+                                 (g_game == "tripatron" && IsSection(s, "tripkeys")));
   return settings::Get(OpenKey(s), def ? 1 : 0) != 0;
+}
+
+// The slot's time and picture, read once per slot (again after a save / load).
+void Peek(int slot) {
+  if (slot == g_peeked_slot) return;
+  g_peeked_slot = slot;
+  g_peek = {};
+  g_peek_ok = g_state_peek && g_state_peek(slot, &g_peek);
+  if (g_thumb) SDL_DestroyTexture(g_thumb), g_thumb = nullptr;
+}
+std::string When(std::time_t t) {
+  std::tm tm{};
+  localtime_s(&tm, &t);
+  char buf[32];
+  std::strftime(buf, sizeof(buf), "%d %b %H:%M", &tm);
+  std::string s = buf;
+  for (char& c : s) c = char(std::toupper(static_cast<unsigned char>(c)));
+  return s;
+}
+bool Thumb(SDL_Renderer* r) {
+  if (g_thumb) return true;
+  if (!g_peek_ok || g_peek.pixels.empty()) return false;
+  if (SDL_Surface* sf = SDL_CreateSurfaceFrom(g_peek.w, g_peek.h, SDL_PIXELFORMAT_ARGB8888, g_peek.pixels.data(),
+                                              g_peek.w * 4)) {
+    g_thumb = SDL_CreateTextureFromSurface(r, sf);
+    SDL_DestroySurface(sf);
+    if (g_thumb) SDL_SetTextureScaleMode(g_thumb, SDL_SCALEMODE_LINEAR);
+  }
+  return g_thumb != nullptr;
 }
 
 void Rebuild() {
@@ -402,7 +427,7 @@ void Change(int dir) {
     case Kind::kToggle: case Kind::kFullscreen: SetValue(*it, Value(*it) != 0 ? 0 : 1); break;
     case Kind::kChoice: SetValue(*it, std::clamp(Value(*it) + dir, it->lo, it->hi)); break;
     case Kind::kSlider: SetValue(*it, Value(*it) + dir * it->step); break;
-    case Kind::kResetCrt: case Kind::kInfo: case Kind::kSteam: break;
+    case Kind::kResetCrt: case Kind::kInfo: case Kind::kSteam: case Kind::kSaveState: case Kind::kLoadState: break;
   }
 }
 
@@ -442,6 +467,16 @@ void Press() {
   }
   const Item* it = Selected();
   if (!it) return;
+  if (it->kind == Kind::kSaveState || it->kind == Kind::kLoadState) {
+    const int slot = int(settings::Get("state_slot", 0)) + 1;
+    if (it->kind == Kind::kLoadState && (Peek(slot), !g_peek_ok)) {
+      g_state_status = "EMPTY";
+      return;
+    }
+    g_state_request = {it->kind == Kind::kSaveState, slot};
+    g_state_requested = true;
+    return;
+  }
   if (it->kind == Kind::kSteam) {
     g_steam_status = steam::AddToSteam();
     LOG("settings: add to Steam: %s", g_steam_status.c_str());
@@ -515,16 +550,17 @@ void Open(const std::string& game_id, const std::string& title) {
   g_sections.clear();
   if (game_id.empty()) {  // the Settings disk: everything but the controls (those are per game, set in a game)
     for (int s = 0; s < int(std::size(kSections)); ++s)
-      if (!IsSection(s, "controls")) g_sections.push_back(s);
+      if (!IsSection(s, "controls") && !IsSection(s, "states")) g_sections.push_back(s);
   } else {  // in a game: general, the game's own, its controls, then the CRT looks
     const std::string own = OwnSection();
     const char* keys = own == "tripatron" ? "tripkeys" : "";  // (a list to read: its controls aren't remapped)
-    for (const char* id : {"general", own.c_str(), keys, "controls", "crt", "crtpp"})
+    for (const char* id : {"states", own.c_str(), keys, "controls", "general", "crt", "crtpp"})
       for (int s = 0; s < int(std::size(kSections)); ++s) {
         if (!IsSection(s, id)) continue;
         if (IsSection(s, "controls") && remap::Functions().empty()) continue;  // (no list for this program)
+        if (IsSection(s, "states") && !g_state_peek) continue;  // (no savestates here: the docs readers)
         if (std::string(id) == own && (own == "general" || own == "controls" || own == "crt" || own == "crtpp" ||
-                                       own == "tripkeys"))
+                                       own == "tripkeys" || own == "states"))
           continue;
         g_sections.push_back(s);
       }
@@ -532,10 +568,12 @@ void Open(const std::string& game_id, const std::string& title) {
   g_rows.clear();
   g_sel = -1;
   Rebuild();
-  g_sel = g_top = 0;
-  Move(1);
+  g_top = 0, g_sel = -1;
+  Move(1);  // the first row; an open section's heading: its first setting
+  if (const Row* first = SelectedRow(); first && first->section >= 0 && SectionOpen(first->section)) Move(1);
   g_held_x = g_held_y = 0;
   g_listen = -1;
+  g_state_status.clear(), g_peeked_slot = -1;
   g_open = true;
   LOG("settings opened (%s)", game_id.empty() ? "all" : game_id.c_str());
 }
@@ -571,12 +609,13 @@ Result HandleEvent(const SDL_Event& e) {
   }
   if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
     switch (e.gbutton.button) {
+      // (owner 2026-11-20: B was pressed by accident and left the game - B now only closes the panel, X leaves)
       case SDL_GAMEPAD_BUTTON_SOUTH: Press(); break;
-      case SDL_GAMEPAD_BUTTON_WEST: Default(); break;
+      case SDL_GAMEPAD_BUTTON_NORTH: Default(); break;
       case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: JumpSection(-1); break;
       case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: JumpSection(1); break;
-      case SDL_GAMEPAD_BUTTON_EAST: return Result::kQuit;
-      case SDL_GAMEPAD_BUTTON_BACK: case SDL_GAMEPAD_BUTTON_START: return Result::kClose;
+      case SDL_GAMEPAD_BUTTON_WEST: return Result::kQuit;
+      case SDL_GAMEPAD_BUTTON_EAST: case SDL_GAMEPAD_BUTTON_BACK: case SDL_GAMEPAD_BUTTON_START: return Result::kClose;
       default: break;  // the d-pad: Update (repeats while held)
     }
   } else if (e.type == SDL_EVENT_KEY_DOWN) {
@@ -589,8 +628,8 @@ Result HandleEvent(const SDL_Event& e) {
       case SDL_SCANCODE_PAGEDOWN: JumpSection(1); break;
       case SDL_SCANCODE_RETURN: case SDL_SCANCODE_SPACE: if (!e.key.repeat) Press(); break;
       case SDL_SCANCODE_DELETE: case SDL_SCANCODE_BACKSPACE: if (!e.key.repeat) Default(); break;
-      case SDL_SCANCODE_ESCAPE: if (!e.key.repeat) return Result::kQuit; break;
-      case SDL_SCANCODE_F1: if (!e.key.repeat) return Result::kClose; break;
+      case SDL_SCANCODE_X: if (!e.key.repeat) return Result::kQuit; break;
+      case SDL_SCANCODE_ESCAPE: case SDL_SCANCODE_F1: if (!e.key.repeat) return Result::kClose; break;
       default: break;
     }
   } else if (e.type == SDL_EVENT_MOUSE_WHEEL && e.wheel.y != 0) {
@@ -666,7 +705,7 @@ void Render(SDL_Renderer* r) {
   } else if (sel_row && sel_row->control >= 0) {
     help = g_listen >= 0 ? "Press the button for this (one already on the row comes off). {START} / {BACK}: cancel."
                          : std::string(remap::Functions()[size_t(sel_row->control)].help) +
-                               " {A}: attach a button. {X}: its own buttons.";
+                               " {A}: attach a button. {Y}: its own buttons.";
   } else if (sel_row && sel_row->reset_controls) {
     help = "Press {A}: every button back to what the game had.";
   } else if (const Item* it = Selected()) {
@@ -686,8 +725,8 @@ void Render(SDL_Renderer* r) {
     while (at < help.size() && help[at] == ' ') ++at;
   }
   const char* keys1 = "UP/DOWN PICK   LEFT/RIGHT CHANGE   {A} TOGGLE";
-  const char* keys2 = g_game.empty() ? "{X} DEFAULT   {LB}/{RB} SECTION   {B} BACK" : "{X} DEFAULT   {LB}/{RB} SECTION";
-  const char* keys3 = g_game.empty() ? nullptr : "{BACK} RESUME   {B} QUIT TO THE DISKS";
+  const char* keys2 = g_game.empty() ? "{Y} DEFAULT   {LB}/{RB} SECTION   {B} BACK" : "{Y} DEFAULT   {LB}/{RB} SECTION";
+  const char* keys3 = g_game.empty() ? nullptr : "{B}/{BACK} RESUME   {X} QUIT TO THE DISKS";
   float foot_h = (float(foot.size()) + (keys3 ? 4.5f : 3.5f)) * row_h;
   float list_bottom = h - pad - foot_h;
   int visible = std::max(1, int((list_bottom - y) / row_h));
@@ -779,8 +818,40 @@ void Render(SDL_Renderer* r) {
       case Kind::kInfo:
         text(it.choices.empty() ? "" : it.choices[0], vx, ry, sel ? kWhite : kOn);
         break;
+      case Kind::kSaveState:
+        text(!g_state_status.empty() && sel ? g_state_status : (sel ? "PRESS {A}" : ""), vx, ry,
+             g_state_status.empty() ? kDim : kOn);
+        break;
+      case Kind::kLoadState: {
+        Peek(int(settings::Get("state_slot", 0)) + 1);
+        text(g_peek_ok ? When(g_peek.when) : "EMPTY", vx, ry, g_peek_ok ? (sel ? kWhite : kLabel) : kDim);
+        break;
+      }
     }
     if (it.next_start) text("*", pw - pad - glyph, ry, kDim);
+  }
+  // A save state row picked: its slot's picture over the game's, to the right.
+  if (const Item* it = Selected(); it && std::string(it->section) == "states") {
+    const int slot = int(settings::Get("state_slot", 0)) + 1;
+    Peek(slot);
+    const float area_x = pw + pad, area_w = w - pw - 2 * pad;
+    std::string title = "SLOT " + std::to_string(slot) + (g_peek_ok ? "   " + When(g_peek.when) : "   EMPTY");
+    if (area_w > 20 * glyph) {
+      SDL_SetRenderDrawColor(r, 0, 0, 0, 200);
+      const float tw = area_w * 0.7f, th = tw / 1.6f, tx = area_x + (area_w - tw) / 2, ty = (h - th) / 2;
+      SDL_FRect back{tx - glyph, ty - 2.5f * row_h, tw + 2 * glyph, th + 3.5f * row_h};
+      SDL_RenderFillRect(r, &back);
+      text(title, tx, ty - 1.6f * row_h, kWhite);
+      SDL_FRect pic{tx, ty, tw, th};
+      if (g_peek_ok && Thumb(r)) {
+        SDL_RenderTexture(r, g_thumb, nullptr, &pic);
+      } else {
+        SDL_SetRenderDrawColor(r, 40, 40, 50, 255);
+        SDL_RenderFillRect(r, &pic);
+      }
+      SDL_SetRenderDrawColor(r, 140, 140, 155, 255);
+      SDL_RenderRect(r, &pic);
+    }
   }
   // Scroll marks.
   if (g_top > 0) text("^", pw - pad, y - row_h, kDim);
@@ -794,5 +865,14 @@ void Render(SDL_Renderer* r) {
   if (keys3) text(keys3, pad, fy, kAccent);
   SDL_SetRenderLogicalPresentation(r, lw, lh, mode);
 }
+
+bool TakeStateRequest(StateRequest* r) {
+  if (!g_state_requested) return false;
+  g_state_requested = false;
+  *r = g_state_request;
+  return true;
+}
+void SetStateStatus(const std::string& status) { g_state_status = status, g_peeked_slot = -1; }
+void SetStatePeek(std::function<bool(int, savestate::Info*)> peek) { g_state_peek = std::move(peek), g_peeked_slot = -1; }
 
 }  // namespace menu

@@ -80,6 +80,7 @@ void SetAheadState(std::function<void()> save, std::function<void()> restore);
 void RunAhead(st::Machine* m);
 // A line to show for a moment after F7 / F8 (nullptr: none).
 const char* Message();
+void Say(const char* text);  // a message line of our own for 2.5 s (savestates: "STATE 2 SAVED")
 void SetProbe(bool on);  // tests: log the rotated item's angle each frame shown
 // Tests (--remaster-writers=N): during captured passes N and N + 1 (counted from the first), log which code writes
 // into the screen being drawn (16-byte blocks of code: count@address) - what is still drawn by the game.

@@ -8,6 +8,7 @@
 #include "gridrunner.h"
 #include "stgames.h"
 #include "tripatron.h"
+#include "savestate.h"
 #include "settings.h"
 #include "log.h"
 #include "machine.h"
@@ -281,6 +282,13 @@ bool HintAtTop() { return g_mode == Mode::kTripATron; }
 void SetMode(Mode mode) {
   g_mode = mode;
   g_gridrunner = mode == Mode::kGridrunner;
+}
+
+// Savestates: the pad's buttons held / keys tapped on the ST and the generic mouse's sub-pixel steps.
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("input", [](auto& io) {
+  io(g_mouse_x)(g_mouse_y)(g_start_held)(g_back_held)(g_a_held)(g_a_to_stick0)(g_taps)(g_quit_to_title)(g_was_title);
+});
 }
 
 Mode GetMode() { return g_mode; }

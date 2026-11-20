@@ -37,6 +37,7 @@
 #include "glyphs.h"
 #include "preview.h"
 #include "rumble.h"
+#include "savestate.h"
 #include "steam.h"
 #include "log.h"
 #include "machine.h"
@@ -116,6 +117,9 @@ struct Options {
   int dump_frame = -1;     // --dump=N:<file>: write the 1 MB of RAM at frame N (tests, analysis)
   std::string dump_file;
   int dump_every = 0;      // --dump-every=K:<prefix>: also every K frames to <prefix><frame>.bin (RAM searches)
+  // --state-save=N:<file> / --state-load=N:<file>: a savestate written / loaded before frame N (tests)
+  int state_save_frame = -1, state_load_frame = -1;
+  std::string state_save_file, state_load_file;
   std::string dump_prefix;
   std::string profile_file;  // --watch=<hex text offset | @hex address>[,...]: log these words every 10 frames (tests)
 };
@@ -176,6 +180,10 @@ Options ParseArgs(int argc, char** argv) {
     else if (Arg(a, "dump", &v)) {
       o.dump_frame = std::atoi(v.c_str());
       o.dump_file = v.substr(v.find(':') + 1);
+    } else if (Arg(a, "state-save", &v)) {
+      o.state_save_frame = std::atoi(v.c_str()), o.state_save_file = v.substr(v.find(':') + 1);
+    } else if (Arg(a, "state-load", &v)) {
+      o.state_load_frame = std::atoi(v.c_str()), o.state_load_file = v.substr(v.find(':') + 1);
     } else if (Arg(a, "dump-every", &v)) {
       o.dump_every = std::atoi(v.c_str());
       o.dump_prefix = v.substr(v.find(':') + 1);
@@ -376,6 +384,7 @@ uint8_t PressBits(const std::string& what, int* port) {
 struct Context {
   Options* opt = nullptr;
   fs::path save_dir;
+  fs::path userdata;  // the userdata folder itself (save_dir is a game's own while it runs): savestates
   std::string disk_path;
   std::map<std::string, disk::Bytes> disk_files;  // as on the disk
   SDL_Window* window = nullptr;
@@ -457,6 +466,20 @@ void KeepPreview(Context& c, const st::Machine& m) {
   }
 }
 
+// A savestate's picture: the frame as shown, the remaster's sprites composed in (they aren't in the ST's picture).
+savestate::Info StatePicture(const st::Machine& m) {
+  savestate::Info pic;
+  pic.w = m.FrameWidth(), pic.h = m.FrameHeight();
+  if (remaster_falcon::Active()) {
+    remaster_falcon::ComposeSoftware(&pic.pixels);
+  } else if (remaster::Active() && m.FrameWidth() == st::kScreenW) {
+    SetRemasterColour0(m);
+    remaster::ComposeSoftware(m.Frame(), m.LinePalettes(), m.SteColours(), &pic.pixels);
+  }
+  if (pic.pixels.size() != size_t(pic.w) * size_t(pic.h)) pic.pixels.assign(m.Frame(), m.Frame() + pic.w * pic.h);
+  return pic;
+}
+
 void LoadPreview(Context& c) {
   SDL_Surface* s = SDL_LoadBMP(c.preview_path.string().c_str());
   if (!s) return;
@@ -505,6 +528,17 @@ bool PlayRule(const st::Machine& m, const games::Game& g) {
 }
 
 // Runs one game (a program on the disk) until the player leaves it.
+// Savestates: the game's id for its slots (a user disk's by its file name) and a load with the game modules
+// brought in line with the machine they now run (savestate.h).
+std::string StateId(const Context& c, const std::string& program) {
+  return c.game ? (c.game->user ? "disk_" + c.game->id : c.game->id) : program;
+}
+bool LoadState(Context& c, st::Machine& m, const fs::path& path, const std::string& program, std::string* error) {
+  if (!savestate::Load(path, m, StateId(c, program), program, error)) return false;
+  rumble::Start(c.game && !c.in_game_docs ? c.game->id : std::string());  // (its counters read afresh: no pulse)
+  return true;
+}
+
 GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input::Mode mode) {
   Options& opt = *c.opt;
   std::string error;
@@ -628,6 +662,36 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
       running = false, end = direct ? GameEnd::kQuitApp : GameEnd::kToLauncher;
     }
   };
+  // Savestates (savestate.h): F2 save / F4 load the slot picked on the panel (state_slot), or the panel's SAVE
+  // STATES rows; done between frames. Not in the docs readers; Trip-A-Tron: the panel only (its F-keys are its own).
+  const std::string state_id = StateId(c, program_name);
+  const bool states_ok = mode != input::Mode::kDocs && !c.in_game_docs;
+  if (states_ok)
+    menu::SetStatePeek([&c, state_id](int slot, savestate::Info* info) {
+      return savestate::Peek(savestate::SlotPath(c.userdata, state_id, slot), state_id, info);
+    });
+  else
+    menu::SetStatePeek(nullptr);
+  auto do_state = [&](bool save, int slot) {
+    const fs::path path = savestate::SlotPath(c.userdata, state_id, slot);
+    std::string error;
+    const savestate::Info picture = save ? StatePicture(machine) : savestate::Info{};
+    const bool ok = save ? savestate::Save(path, machine, state_id, program_name, &error, &picture)
+                         : LoadState(c, machine, path, program_name, &error);
+    for (char& ch : error) ch = char(std::toupper(static_cast<unsigned char>(ch)));
+    char msg[96];
+    if (ok) std::snprintf(msg, sizeof(msg), "STATE %d %s", slot, save ? "SAVED" : "LOADED");
+    else std::snprintf(msg, sizeof(msg), "STATE %d: %s", slot, error.c_str());
+    remaster::Say(msg);
+    menu::SetStateStatus(ok ? (save ? "SAVED" : "LOADED") : error);
+    if (!ok) LOG("savestate: slot %d not %s: %s", slot, save ? "saved" : "loaded", error.c_str());
+    if (ok && !save) {  // a moment from elsewhere: no sound queued from before, the frame clock from now
+      machine.Audio().clear(), machine.AudioSide().clear();
+      if (audio) SDL_ClearAudioStream(audio);
+      menu_resync = true;
+    }
+    return ok;
+  };
   // Every event in a game: the settings panel first (opening it, or it takes them while open).
   auto dispatch = [&](const SDL_Event& e) {
     if (menu::IsOpen()) {
@@ -679,6 +743,12 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         remaster::CycleAhead();
         continue;
       }
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          (e.key.scancode == SDL_SCANCODE_F2 || e.key.scancode == SDL_SCANCODE_F4) && states_ok &&
+          mode != input::Mode::kTripATron && !menu::IsOpen()) {
+        do_state(e.key.scancode == SDL_SCANCODE_F2, int(settings::Get("state_slot", 0)) + 1);
+        continue;
+      }
       dispatch(e);
     }
     if (!menu::IsOpen())
@@ -700,6 +770,11 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
         }
         menu_event(be);
       }
+    }
+    if (menu::StateRequest req; menu::TakeStateRequest(&req) && do_state(req.save, req.slot) && !req.save) {
+      remap::SyncEvents(input::FirstPad());  // loaded: back to the game at once (what's held makes no presses)
+      trip::Resync();
+      menu::Close();
     }
     if (input::QuitRequested()) running = false, end = direct ? GameEnd::kQuitApp : GameEnd::kToLauncher;
     if (frame % 50 == 0 && settings::Reload()) {  // edited while running
@@ -760,6 +835,16 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     }
     for (int i = 0; i < run && running && !menu::IsOpen(); ++i) {
       frames_due += 1;
+      // Savestates between frames, before this frame's input reaches the machine (tests here; the panel / F2 /
+      // F4 below).
+      if (frame == opt.state_save_frame || frame == opt.state_load_frame) {  // (tests)
+        const bool save = frame == opt.state_save_frame;
+        std::string error;
+        const fs::path path(save ? opt.state_save_file : opt.state_load_file);
+        bool ok = save ? savestate::Save(path, machine, StateId(c, program_name), program_name, &error)
+                       : LoadState(c, machine, path, program_name, &error);
+        LOG("state test: %s at frame %d: %s", save ? "save" : "load", frame, ok ? "ok" : error.c_str());
+      }
       input::Update(&machine);
       if (!llamatron) {
         SDL_MouseButtonFlags mb = opt.headless ? 0 : SDL_GetMouseState(nullptr, nullptr);
@@ -854,6 +939,12 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
           be.type = frame == p.frame ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
           be.gbutton.button = uint8_t(SDL_GetGamepadButtonFromString(p.what.c_str() + 3));
           if (remap::TranslateTest(&be)) dispatch(be);
+        } else if (p.what.rfind("host", 0) == 0) {  // host<key>: a key the app itself takes (F2 / F4...): queued
+          if (frame != p.frame) continue;
+          SDL_Event ke{};
+          ke.type = SDL_EVENT_KEY_DOWN;
+          ke.key.scancode = SDL_GetScancodeFromName(p.what.c_str() + 4);
+          SDL_PushEvent(&ke);
         } else if (frame == p.frame || frame == p.frame + p.length - 1) {
           SDL_Scancode sc = SDL_GetScancodeFromName(p.what.c_str());
           SDL_Event ke{};
@@ -1145,6 +1236,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     }
   }
   menu::Close();
+  menu::SetStatePeek(nullptr);
   if (window) SDL_SetWindowRelativeMouseMode(window, false);
   if (audio) SDL_ClearAudioStream(audio);
   if (renderer && mode != input::Mode::kDocs && frame > 0) KeepPreview(c, machine);
@@ -1439,6 +1531,7 @@ int main(int argc, char** argv) {
   // The log: --log, else userdata\llamatron.log next to the exe.
   std::error_code ec;
   c.save_dir = opt.userdata.empty() ? ExeDir() / "userdata" : fs::path(opt.userdata);
+  c.userdata = c.save_dir;
   fs::create_directories(c.save_dir, ec);
   logging::Open(opt.log.empty() ? (c.save_dir / "llamatron.log").string().c_str() : opt.log.c_str());
   InstallCrashHandler();

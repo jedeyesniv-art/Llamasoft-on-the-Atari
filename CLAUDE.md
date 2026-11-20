@@ -312,6 +312,33 @@ ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 
   0, ~40 ms quicker than the original game (cancels the interpolation's frame). Cost ~0.3 ms per frame run
   ahead. Game RAM identical with run-ahead 3 + ps_analog 1 (7000 frames). --remaster-ahead=N for a run.
 
+## Savestates (2026-11-20, owner: "savestates for all the games", on disk, panel + F2 / F4)
+- src/savestate.h/.cpp: userdata\states\<id>\slot1..4.state (user disks disk_<name>): header LLST, format 1, game
+  id + program (the two Camels builds share an id), time; then PackBits of: the picture (the remaster's sprites
+  composed in: main StatePicture), Machine::SaveState, cpu::SaveCpu, the modules' blobs. ~2 MB raw / 0.75 MB on
+  disk (ST), 5.5 / 3.1 MB (Falcon); save 4-9 ms, load 2-5 ms. Refused whole (another version / game / damaged).
+- Machine::Hook(addr, fn) replaces Put16(0x4AFC) + AddHook at every site: keeps the instruction's first 8 bytes.
+  SaveState writes RAM with each hooked word put back; LoadState keeps the live hook table and re-patches where the
+  bytes match, the rest pending (checked each RunFrame: code not unpacked yet). Modules install lazily as before.
+- src/machine_state.inc: one field list (StateFields) for writer and reader; structs with containers list theirs
+  (State()); left out: hooks, files_ / save_dir_ (the live ones: high-score files never roll back), audio,
+  settings, logging. Tools/state_fields.py checks every member of machine.h is in or left out on purpose - run it
+  after adding one. CPU: src/musashi_state.c copies m68ki_cpu_core up to cyc_instruction (all plain data before
+  it); a load keeps the live pointers (tables, callbacks), so a new process can load it.
+- Module state (savestate::RegisterFields, a generic lambda over Writer / Reader): stgames (held keys, pointers,
+  pulses, Photon's heading / drift / shots, D2's selection; after a load D2's high scores come back from the
+  file), gridrunner (pointer motion, clicks, g_running, the look-ahead's frame and reveal times), tripatron (light
+  motion, wheels, clicks, music orbit), game.cpp (analog shots), input.cpp (held buttons, taps), llamazap (aim,
+  keypad press; the power-up menu closes). Remaster capture isn't saved: it picks up on the next frame (checked:
+  Photon / Llamazap sprites there the first frame after a load). CRT++'s trail blends the jump (left as is).
+- UI: panel section SAVE STATES in a game (not the docs readers): SLOT (state_slot 0..3, shared), SAVE / LOAD
+  STATE (A; a load closes the panel), the slot's picture and time to the right (menu::SetStatePeek /
+  TakeStateRequest / SetStateStatus); F2 / F4 in every game but Trip-A-Tron; message line via remaster::Say.
+- Tests: --state-save=N:<file> / --state-load=N:<file> (at the frame's top, before its input), --press=N:host<key>
+  (a key the app takes: hostF2). Tools/state_test.ps1 [-Only id]: run A saves in play and dumps RAM M frames on;
+  B (new process) loads at frame 200 and C loads into play, each replaying A's input shifted: RAM identical for
+  all 10 games, both ways (2026-11-20). Not yet tried by the owner.
+
 ## STOCK ST (2026-11-10; a player asked to play at stock ST settings, owner: "make it worse on purpose")
 - Setting <section>_stock (0 default; rmc_stock covers both Camels builds), a STOCK ST row in each game's panel
   section, read at the game's start (games::StockSetting -> SetStock in RunGame, cleared at its end: previews unchanged).
@@ -442,6 +469,24 @@ ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 
   open). The panel's d-pad is polled (repeat), so scripted moves use key names (Down, Right). The launcher's
   frame counter now runs across visits. SaveRenderShot reads the whole window.
 - Gotcha: pad events arrive in the background (SDL hint): the owner's pad opened the panel during a test.
+
+## Panel buttons, 2026-11-20 (owner: B pressed by accident left the game)
+- In the settings panel B / Back / Start / Esc / F1 only close it (back to play); X (keyboard X) quits to the disks;
+  Y (keyboard Delete / Backspace) = the row's default (was X; the controls rows' own buttons too). Settings disk:
+  B or X back to the disks. Supersedes "B / Esc leave to the disks" and "X = the row's defaults" below.
+
+## Panel order, 2026-11-20 (owner: savestates near the top, GENERAL folding and closed, most useful first)
+- In a game: SAVE STATES (open), the game's own (open), CONTROLS, GENERAL, CRT LOOK, CRT++ (folded). Every section
+  folds now (GENERAL too: panel_open_general / panel_disk_open_general, default closed). The Settings disk: all
+  folded, in kSections order. The cursor starts on the first row (an open heading: its first setting).
+- GENERAL: CRT LOOK, VOLUME, REMASTER, RUN-AHEAD, RUMBLE, FULLSCREEN, EVEN OUT GAME VOLUMES, BUTTON NAMES,
+  EXCLUSIVE FULLSCREEN, ADD TO STEAM. Each game's STOCK ST last; Trip-A-Tron's REACT TO MUSIC first.
+- Off the panel (still read from settings.txt, same defaults): the four 50 FRAMES A SECOND rows (STOCK ST covers
+  the original rate), Andes ALTITUDE SPEED / CURVE (DIRECT altitude only) and DIRECT THRUST / EASE (the stick
+  scheme the owner turned down), Gridrunner STICK CURVE / DEAD ZONE / EASE IN / EASE OUT / D-PAD SPEED and
+  Trip-A-Tron STICK CURVE / DEAD ZONE (tuned and baked). Renamed (fit the label column): RESTART WHERE YOU
+  DIED (grid_unlock_level_died), TWIN STICK (LLAMATRON) (llamazap_twin_stick).
+- Llamazap's CRT++ look (the owner's build\userdata values) is in crt.cpp kGameDefaults.
 
 ## Button remapping + panel tidy (2026-11-07; PLAN-CONTROLS.md, owner's answers below)
 - src/remap.cpp: per game a list of functions (each = the game's own buttons, the first = what attached buttons

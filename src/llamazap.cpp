@@ -21,6 +21,7 @@
 #include "remap.h"
 #include "remaster.h"
 #include "remaster_falcon.h"
+#include "savestate.h"
 #include "settings.h"
 
 namespace llamazap {
@@ -636,18 +637,24 @@ void Reset() {
   g_inject_frames = 0;
 }
 
+// Savestates: the right stick's aim and a keypad press in progress; the power-up menu is closed by a load.
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("llamazap", [](auto& io) {
+  io(g_aim)(g_lb_was)(g_stick_blocked)(g_inject_key)(g_inject_frames);
+  if constexpr (std::is_same_v<std::decay_t<decltype(io)>, savestate::Reader>) g_menu.open = false;
+});
+}
+
 bool MenuOpen() { return g_menu.open; }
 
 bool InPlay(const st::Machine& m) { return InLevel(m); }
 
 void PreviewFrame(st::Machine* m, int f) {
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
-    Put16(m, kCheck, 0x4AFC);
-    m->AddHook(kCheck, OnManualCheck);
+    m->Hook(kCheck, OnManualCheck);
   }
   if (Get16(*m, kEntryCall) == 0x61FF && Get32(*m, kEntryCall + 2) == 0xBF60) {
-    Put16(m, kEntryCall, 0x4AFC);
-    m->AddHook(kEntryCall, OnEntryScreen);
+    m->Hook(kEntryCall, OnEntryScreen);
   }
   if (Get16(*m, kDivisorRead) == 0x3039 && Get32(*m, kDivisorRead + 2) == kDivisor) Put16(m, kDivisor, g_50fps ? 1 : 2);
   uint32_t bits = 0;
@@ -727,28 +734,22 @@ void Update(st::Machine* m) {
   m->SetJagpad(bits);
   // Once unpacked (the program unpacks itself over where it was loaded): the manual check's hook.
   if (Get16(*m, kCheck) == 0xB679 && Get32(*m, kCheck + 2) == kWanted) {
-    Put16(m, kCheck, 0x4AFC);
-    m->AddHook(kCheck, OnManualCheck);
+    m->Hook(kCheck, OnManualCheck);
   }
   if (Get16(*m, kSpriteA) == 0x42B9 && Get32(*m, kSpriteA + 2) == kClip) {  // clr.l $51338 (twice)
-    Put16(m, kSpriteA, 0x4AFC);
-    m->AddHook(kSpriteA, OnSpriteA);
+    m->Hook(kSpriteA, OnSpriteA);
   }
   if (Get16(*m, kSpriteB) == 0x42B9 && Get32(*m, kSpriteB + 2) == kClip) {
-    Put16(m, kSpriteB, 0x4AFC);
-    m->AddHook(kSpriteB, OnSpriteB);
+    m->Hook(kSpriteB, OnSpriteB);
   }
   if (Get16(*m, kSpriteC) == 0x42B9 && Get32(*m, kSpriteC + 2) == kClip) {
-    Put16(m, kSpriteC, 0x4AFC);
-    m->AddHook(kSpriteC, OnSpriteC);
+    m->Hook(kSpriteC, OnSpriteC);
   }
   if (Get16(*m, kDotPlot) == 0x4A41 && Get16(*m, kDotPlot + 2) == 0x6BFF) {  // tst.w d1 ; bmi.l
-    Put16(m, kDotPlot, 0x4AFC);
-    m->AddHook(kDotPlot, OnDot);
+    m->Hook(kDotPlot, OnDot);
   }
   if (Get16(*m, kSwap) == 0x0CB9 && Get32(*m, kSwap + 2) == kDescA && Get32(*m, kSwap + 6) == kDrawDesc) {
-    Put16(m, kSwap, 0x4AFC);
-    m->AddHook(kSwap, OnSwap);
+    m->Hook(kSwap, OnSwap);
   }
   // Capturing in play on every stage (each stage type verified: CLAUDE.md), the remaster on.
   const bool capture = remaster::Enabled() && !games::Stock() && InLevel(*m);
@@ -765,16 +766,13 @@ void Update(st::Machine* m) {
     m->SetCleanMargin(0);
   }
   if (Get32(*m, kFireFollow) == 0x08390001 && Get32(*m, kFireFollow + 4) == kPadB) {
-    Put16(m, kFireFollow, 0x4AFC);
-    m->AddHook(kFireFollow, OnFireFollow);
+    m->Hook(kFireFollow, OnFireFollow);
   }
   if (Get16(*m, kStageStart) == 0x23C8 && Get32(*m, kStageStart + 2) == kStageAt) {
-    Put16(m, kStageStart, 0x4AFC);
-    m->AddHook(kStageStart, OnStageStart);
+    m->Hook(kStageStart, OnStageStart);
   }
   if (Get16(*m, kEntryCall) == 0x61FF && Get32(*m, kEntryCall + 2) == 0xBF60) {
-    Put16(m, kEntryCall, 0x4AFC);
-    m->AddHook(kEntryCall, OnEntryScreen);
+    m->Hook(kEntryCall, OnEntryScreen);
   }
   // The divisor: 1 on every screen (2026-11-20; before: in play only), the original 2 with the setting off / STOCK
   // (only this build: the main loop reads it where we expect).

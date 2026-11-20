@@ -457,8 +457,7 @@ void Install(st::Machine* m) {
     }
   for (const H& h : hooks) {
     if (h.at < 0x10000) continue;  // not in this game
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   g_capture = false;
   remaster::Stop();

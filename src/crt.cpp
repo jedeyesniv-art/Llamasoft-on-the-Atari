@@ -33,7 +33,8 @@ int g_mode = 1;  // 0 off, 1 CRT+, 2 CRT++ (setting crt, or <game>_crt)
 bool g_docs = false;  // SetDocs: CRT++ shown as CRT+
 std::string g_game;  // SetGame
 
-// The owner's per-game looks (2026-11-07, from the Deck test build's settings.txt): what a game uses for these keys
+// The owner's per-game looks (2026-11-07, from the Deck test build's settings.txt; Llamazap's 2026-11-20, from the
+// owner's build\userdata): what a game uses for these keys
 // when the player hasn't given it its own. Generated - keep in step with the panel (settings_menu Value).
 struct GameDefault {
   const char* game;
@@ -83,6 +84,14 @@ const GameDefault kGameDefaults[] = {
     {"llamatron", "crt_psy_length", 0.3},
     {"llamatron", "crt_psy_threshold", 0.1},
     {"llamatron", "crt_psy_trails", 0.6},
+    {"llamazap", "crt", 2},
+    {"llamazap", "crt_psy_bleed", 0.5},
+    {"llamazap", "crt_psy_gain", 1.3},
+    {"llamazap", "crt_psy_glow", 3},
+    {"llamazap", "crt_psy_length", 0.1},
+    {"llamazap", "crt_psy_saturation", 1.3},
+    {"llamazap", "crt_psy_trails", 0.2},
+    {"llamazap", "crt_psy_zoom", 0},
     {"photonstorm", "crt", 2},
     {"photonstorm", "crt_psy_bleed", 0.7},
     {"photonstorm", "crt_psy_glow", 4.5},

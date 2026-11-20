@@ -30,6 +30,10 @@ extern void (*g_write_watch)(uint32_t a, uint32_t pc);
 // The CPU's state, for running a copy of the machine and coming back (look-ahead).
 std::vector<uint8_t> SaveContext();
 void RestoreContext(const std::vector<uint8_t>& context);
+// Savestates: the CPU's registers and state without its pointers (tables, callbacks), so a file written by one
+// process loads in another. LoadCpu keeps the live pointers; false = from another build (size differs).
+std::vector<uint8_t> SaveCpu();
+bool LoadCpu(const std::vector<uint8_t>& state);
 // Whose bus the CPU uses (Init sets it).
 void SetMachine(st::Machine* machine);
 

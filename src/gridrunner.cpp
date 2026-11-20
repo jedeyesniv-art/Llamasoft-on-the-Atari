@@ -10,6 +10,7 @@
 #include "games.h"
 #include "log.h"
 #include "remap.h"
+#include "savestate.h"
 #include "settings.h"
 
 namespace grid {
@@ -171,10 +172,9 @@ void InstallHooks(st::Machine* m) {
     LOG("gridrunner: unexpected code at $%X, entry lane hook not installed", kDrawObject);
     return;
   }
-  Put16(*m, kDrawObject, 0x4AFC);
   // The routine draws a whole snake: it gets the tail segment and follows the links (+$E) to the head. Hidden only
   // while every segment is still in the lane and none of them is due to show (the look-ahead).
-  m->AddHook(kDrawObject, [](st::Machine& running) {
+  m->Hook(kDrawObject, [](st::Machine& running) {
     uint32_t obj = cpu::Get(cpu::Reg(cpu::A0 + 3)) & 0xFFFFFF;
     bool hide = g_hide_entry_lane && Get16(running, obj + 6) != 0x1D;
     for (uint32_t o = obj, n = 0; hide && o && n < uint32_t(kObjectSlots); ++n) {
@@ -193,8 +193,7 @@ void InstallHooks(st::Machine* m) {
     LOG("gridrunner: unexpected code at $%X, restart best hook not installed", kBestRead);
     return;
   }
-  Put16(*m, kBestRead, 0x4AFC);
-  m->AddHook(kBestRead, [](st::Machine& running) {
+  m->Hook(kBestRead, [](st::Machine& running) {
     uint32_t level = Get16(running, kLevel);
     if (g_unlock_died) level = std::min<uint32_t>(level + 1, 0x40);
     uint32_t d0 = cpu::Get(cpu::D0);
@@ -555,6 +554,15 @@ const char* Hint(st::Machine* m, bool have_pad) {
     default: return nullptr;
   }
 }
+
+// Savestates: the pointer's motion and the keys / clicks in progress, the look-ahead's frame counter and reveal
+// times, and whether the game has reached its title (its hooks and 50 a second wait for that).
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("gridrunner", [](auto& io) {
+  io(g_taps)(g_px)(g_py)(g_vx)(g_vy)(g_held_keys)(g_flick)(g_lb)(g_rb)(g_du)(g_dd)(g_running)(g_frame)(g_reveal_at);
+  io(g_clicks)(g_click_frame)(g_prev_state);
+});
+}  // namespace
 
 bool QuitRequested() { return g_quit; }
 

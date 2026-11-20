@@ -163,12 +163,10 @@ void Install(st::Machine* m) {
       return;
     }
   for (const H& h : kHooks) {
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   for (uint32_t at : kBegins) {
-    Put16(m, at, 0x4AFC);
-    m->AddHook(at, [at](st::Machine& running) { OnBegin(running, at); });
+    m->Hook(at, [at](st::Machine& running) { OnBegin(running, at); });
   }
   g_installed = true;
   g_capture = false;

@@ -6,6 +6,9 @@
 extern "C" {
 extern int m68ki_remaining_cycles;  // m68kcpu.c: the current Execute's clocks left (UseCycles)
 #include "m68k.h"
+size_t musashi_state_size(void);  // musashi_state.c
+void musashi_state_get(void* out);
+void musashi_state_set(const void* in);
 }
 
 namespace cpu {
@@ -78,6 +81,18 @@ std::vector<uint8_t> SaveContext() {
 void RestoreContext(const std::vector<uint8_t>& context) { m68k_set_context(const_cast<uint8_t*>(context.data())); }
 
 void SetMachine(st::Machine* machine) { g_machine = machine; }
+
+std::vector<uint8_t> SaveCpu() {
+  std::vector<uint8_t> c(musashi_state_size());
+  musashi_state_get(c.data());
+  return c;
+}
+
+bool LoadCpu(const std::vector<uint8_t>& state) {
+  if (state.size() != musashi_state_size()) return false;
+  musashi_state_set(state.data());
+  return true;
+}
 void EndSlice() { m68k_end_timeslice(); }
 void SetIrq(int level) { m68k_set_irq(level); }
 

@@ -43,7 +43,7 @@ add_custom_command(
 
 add_library(musashi STATIC
   ${MUSASHI_GEN}/m68kcpu.c ${MUSASHI_GEN}/m68kdasm.c ${MUSASHI_GEN}/m68kops.c
-  ${MUSASHI_GEN}/softfloat/softfloat.c)
+  ${MUSASHI_GEN}/softfloat/softfloat.c ${CMAKE_SOURCE_DIR}/src/musashi_state.c)
 target_include_directories(musashi PUBLIC ${MUSASHI_GEN})
 target_compile_definitions(musashi PRIVATE _CRT_SECURE_NO_WARNINGS)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
@@ -78,6 +78,7 @@ add_executable(llamatron WIN32
   src/remaster_rmc.cpp
   src/remaster_d2.cpp
   src/remaster_falcon.cpp
+  src/savestate.cpp
   src/settings.cpp
   src/settings_menu.cpp
   src/steam.cpp

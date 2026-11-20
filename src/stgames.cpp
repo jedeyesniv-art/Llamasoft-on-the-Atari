@@ -18,6 +18,7 @@
 #include "remaster_andes.h"
 #include "remaster_d2.h"
 #include "remaster_rmc.h"
+#include "savestate.h"
 #include "settings.h"
 
 namespace stgames {
@@ -138,8 +139,7 @@ void RmcInstallAim(st::Machine* m) {
   if (Get16(*m, a.hook) != 0x3200 || Get16(*m, a.hook - 16) != 0x33F0 || Get32(*m, a.hook - 12) != a.dx ||
       Get16(*m, a.hook - 8) != 0x33F0 || Get32(*m, a.hook - 4) != a.dy)
     return;  // not unpacked yet (or not this build)
-  Put16(m, a.hook, 0x4AFC);
-  m->AddHook(a.hook, RmcOnAim);
+  m->Hook(a.hook, RmcOnAim);
   LOG("mutant camels: twin stick hook installed (%s)", g_rmc_twin == 2 ? "360" : g_rmc_twin == 1 ? "8 ways" : "off");
 }
 
@@ -1226,8 +1226,7 @@ void PsInstallRemaster(st::Machine* m) {
       return;
     }
   for (const H& h : kHooks) {
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   g_ps_capture = false;
   remaster::Stop();
@@ -1273,12 +1272,10 @@ void PsInstallHooks(st::Machine* m) {
   for (const H& h : kHooks)
     if (std::memcmp(m->Ram() + h.at, h.code, 6) != 0) return;  // not unpacked yet
   for (const H& h : kHooks) {
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   if (uint16_t(Get16(*m, kPsProjectSub)) == 0x9C45) {  // sub.w d5,d6
-    Put16(m, kPsProjectSub, 0x4AFC);
-    m->AddHook(kPsProjectSub, PsOnProjectSub);
+    m->Hook(kPsProjectSub, PsOnProjectSub);
   } else {
     LOG("photon storm: divide hook not installed ($%06X = $%04X)", kPsProjectSub, uint16_t(Get16(*m, kPsProjectSub)));
   }
@@ -1518,6 +1515,24 @@ const char* Hint(st::Machine* m, bool have_pad) {
     return have_pad ? "PAUSED   Start: resume" : "Space: resume";
   return nullptr;
 }
+
+// Savestates: what this module keeps that the machine's state depends on - keys it holds down on the ST, pointers
+// and pulses it moves in steps, the analog aim / heading / shots it writes, the capture's state - so a load
+// carries on exactly (and no key stays held down on the ST that we think is up). Settings aren't here (reread).
+// After a load Defender 2's high scores are put back from the file again (a load never writes older ones).
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("stgames", [](auto& io) {
+  io(g_keys)(g_taps)(g_delayed_key)(g_delay)(g_rmc_aim_on)(g_rmc_aim_angle);
+  io(g_mouse_x)(g_mouse_y)(g_stick_dir)(g_reverse_frames)(g_fire_held)(g_alt)(g_thrust_frac)(g_shield_held)(g_cruise);
+  io(g_letter)(g_letter_repeat)(g_letter_held);
+  io(g_d2_sel)(g_d2_players)(g_d2_frame)(g_d2_space_at)(g_d2_title_at)(g_d2_click_in)(g_d2_click_frames)(g_d2_held);
+  io(g_d2_pwm)(g_d2_l3)(g_d2_r3)(g_d2_both)(g_d2_sector_row)(g_d2_typing);
+  io(g_hc_x)(g_hc_y)(g_hc_strobes_done);
+  io(g_ps_mx)(g_ps_my)(g_ps_pad)(g_ps_boost)(g_ps_single)(g_ps_aim_on)(g_ps_aim)(g_ps_aim_cell)(g_ps_steer_on);
+  io(g_ps_steer)(g_ps_heading_on)(g_ps_heading)(g_ps_fx)(g_ps_fy)(g_ps_shots)(g_ps_capture)(g_ps_capture_screen);
+  if constexpr (std::is_same_v<std::decay_t<decltype(io)>, savestate::Reader>) g_d2_scores_ready = false;
+});
+}  // namespace
 
 bool QuitRequested() { return g_quit; }
 

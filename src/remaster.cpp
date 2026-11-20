@@ -351,6 +351,10 @@ void CycleAhead() {
 int Ahead() { return g_ahead; }
 void SetAhead(int frames) { g_ahead = std::clamp(frames, 0, 3); }
 const char* Message() { return SDL_GetTicks() < g_message_until ? g_message : nullptr; }
+void Say(const char* text) {
+  std::snprintf(g_message, sizeof(g_message), "%s", text);
+  g_message_until = SDL_GetTicks() + 2500;
+}
 void SetProbe(bool on) { g_probe = on; }
 void SetAheadState(std::function<void()> save, std::function<void()> restore) {
   g_save = std::move(save), g_restore = std::move(restore);

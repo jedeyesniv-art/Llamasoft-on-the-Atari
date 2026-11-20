@@ -143,7 +143,17 @@ class Machine {
 
   // Code hooks: the game instruction at `addr` is replaced by ILLEGAL; when reached, `fn` runs instead (with the
   // machine it runs in) and must do the replaced instruction's work and set the PC to continue.
-  void AddHook(uint32_t addr, std::function<void(Machine&)> fn) { hooks_[addr] = std::move(fn); }
+  // Hook() is the way in: it keeps the instruction's first 8 bytes and writes the ILLEGAL itself, so a savestate
+  // can be written without the patches and the hooks put back after a load. AddHook = the ILLEGAL is the caller's
+  // (throw-away copies only: not put back after a load).
+  void Hook(uint32_t addr, std::function<void(Machine&)> fn);
+  void AddHook(uint32_t addr, std::function<void(Machine&)> fn) { hooks_[addr] = {std::move(fn), {}, false}; }
+
+  // Savestates (savestate.h): every part of the machine but the hooks, the files and the save folder (the live
+  // ones stay) and the audio produced (cleared). RAM is written without the hooks' patches; after a load each
+  // hook goes back where its instruction is (or waits until it is: code not unpacked yet).
+  void SaveState(std::vector<uint8_t>* out);
+  bool LoadState(const std::vector<uint8_t>& in, std::string* error);
 
   bool trace_tos = false;
   // A look-ahead copy (the machine is copyable; run it with cpu::SetMachine): no picture, no sound, no files.
@@ -283,7 +293,16 @@ class Machine {
   void DspPacket();
   void MixDsp(size_t from);
   int DspByte(bool fx, uint32_t k) const;
-  std::map<uint32_t, std::function<void(Machine&)>> hooks_;
+  struct HookEntry {
+    std::function<void(Machine&)> fn;
+    uint8_t orig[8] = {};  // the instruction's first bytes before the ILLEGAL (known: Hook())
+    bool known = false;
+  };
+  std::map<uint32_t, HookEntry> hooks_;
+  std::set<uint32_t> hooks_pending_;  // after a load: hooks whose instruction isn't there (yet)
+  void PlacePendingHooks();
+  template <class Io>
+  void StateFields(Io& io);
   std::array<uint8_t, kRomSize> rom_{};
   std::array<uint32_t, kFrameCapacity> frame_{};
   int frame_w_ = kScreenW, frame_h_ = kScreenH;
@@ -379,6 +398,8 @@ class Machine {
     std::string name;
     size_t pos = 0;
     bool written = false;
+    template <class Io>
+    void State(Io& io);
   };
   std::map<int, OpenFile> handles_;
   uint32_t kbdvbase_ = 0;

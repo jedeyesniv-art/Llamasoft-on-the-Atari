@@ -238,8 +238,7 @@ void Install(st::Machine* m) {
     }
   g_text = t;
   for (const H& h : hooks) {
-    Put16(m, t + h.at, 0x4AFC);
-    m->AddHook(t + h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(t + h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   g_capture = false;
   remaster::Stop();

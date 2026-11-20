@@ -509,8 +509,7 @@ void Install(st::Machine* m) {
       return;
     }
   for (const H& h : kHooks) {
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   g_capture = g_in_pass = false;
   remaster::Stop();

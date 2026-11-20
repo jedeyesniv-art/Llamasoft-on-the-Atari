@@ -150,16 +150,13 @@ void Install(st::Machine* m) {
   for (uint32_t at : kEnds)
     if (differs(at, kEndCode)) return;
   for (const H& h : kHooks) {
-    Put16(m, h.at, 0x4AFC);
-    m->AddHook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
+    m->Hook(h.at, [fn = h.fn](st::Machine& running) { fn(running); });
   }
   for (uint32_t at : kBegins) {
-    Put16(m, at, 0x4AFC);
-    m->AddHook(at, [at](st::Machine& running) { OnBegin(running, at); });
+    m->Hook(at, [at](st::Machine& running) { OnBegin(running, at); });
   }
   for (uint32_t at : kEnds) {
-    Put16(m, at, 0x4AFC);
-    m->AddHook(at, [at](st::Machine& running) { OnEnd(running, at); });
+    m->Hook(at, [at](st::Machine& running) { OnEnd(running, at); });
   }
   g_capture = false;
   remaster::Stop();

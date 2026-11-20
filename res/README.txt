@@ -60,14 +60,18 @@ Keyboard: cursor keys, Enter, H = how to play, X = docs, F9 = CRT look, Esc twic
 
 SETTINGS
 --------
-The last disk on the carousel, and Back (keyboard F1) in any game: everything worth changing - the remaster,
-run-ahead, the CRT look and its sliders, fullscreen, and each game's own controls. In a game the game waits
-while they're up and the picture behind shows what a change does.
+The last disk on the carousel, and Back (keyboard F1) in any game: everything worth changing. In a game the
+list starts with the save states and that game's own settings, then its controls, then GENERAL (the remaster,
+run-ahead, volume, fullscreen...) and the CRT looks, folded away until you open them. The game waits while
+the settings are up and the picture behind shows what a change does.
   Up / down       pick                      Left / right    change (hold for sliders)
-  A               toggle                    X               back to the default
+  A               toggle                    Y               back to the default
   LB / RB         the previous / next section
-  Back            carry on with the game    B               leave the game, back to the disks
+  B or Back       carry on with the game    X               leave the game, back to the disks
 Changes are saved at once. A * marks the ones that take effect when the game next starts.
+SAVE STATES (in a game): four slots per game. Pick a SLOT, then SAVE STATE or LOAD STATE with A; the slot's
+picture and time show to the right. On the keyboard F2 saves and F4 loads the slot picked (not in Trip-A-Tron:
+its F-keys are its own - the panel there). States are kept in userdata\states, there next time you play.
 Sections marked [+] / [-] fold away: A on the heading (or right / left) opens and closes them.
 CONTROLS (in a game, Back): the game's functions with the pad buttons on each. A on a row, then press a
 button: it moves to that function (pressing one already on the row takes it off). X puts a row's own buttons
@@ -105,11 +109,12 @@ LLAMATRON CONTROLS - KEYBOARD
   P / O               pause / resume (and on the pause screen: H 50/60 Hz, S samples on/off, T tentacle, G back)
   X                   (in play) quit to the title screen
   Esc                 pause screen: quit to title
-  F1                  settings (Esc there: back to the disks)
+  F1                  settings (Esc or F1 there: back to the game, X: back to the disks)
   F11 or Alt+Enter    fullscreen / window
   F9                  CRT look: off / CRT+ / CRT++
   F8                  the remaster (4x, interpolated unlocked frame rate) on / off - every game but Trip-A-Tron
   F7                  run-ahead 0-3 frames with the remaster (default 2: quickest response)
+  F2 / F4             save / load a savestate (the slot picked in Settings, SAVE STATES)
 
 
 SUPER GRIDRUNNER CONTROLS - XBOX PAD
@@ -168,7 +173,7 @@ On the Control Panel the d-pad jumps from icon to icon and names it, with what A
 button) do there; the sticks are the mouse (LB held: slowly, for the small buttons; in the tool screens the
 d-pad nudges a pixel at a time). B goes back: out of any screen (Sillyscope, Colour Cooker, the sequencers,
 Disk...) to the Control Panel, closes an alert or a Sym / Cube panel, and on the bare panel puts it away.
-Settings (Back) lists every control (TRIP-A-TRON CONTROLS: pick a row for the details) and has its feel: light speed, stick curve, FLOW (inertia for long glides), paint pressure on /
+Settings (Back) lists every control (TRIP-A-TRON CONTROLS: pick a row for the details) and has its feel: light speed, FLOW (inertia for long glides), paint pressure on /
 off, GYRO (turn the pad to move the light, like a pen - Steam Deck, PlayStation and Switch pads) and a rumble
 on the beat in music mode.
 Keyboard and mouse work as on the ST (F1-F6 are its own: the settings are on the pad's Back only). The first
@@ -267,6 +272,7 @@ What's better - the headlines:
 And:
 - Run-ahead (F7 or Settings, default 2 frames): a copy of the game runs a frame or two ahead with your
   controls, so the picture answers the pad quicker than the original did on a real ST.
+- Savestates in every game (Settings, SAVE STATES; F2 / F4): four slots each, kept between sessions.
 - Rumble from the game itself: a lost life, a smart bomb, every kill (Settings, GENERAL, RUMBLE).
 - Even volume: every game is brought to the same loudness, with a master volume (Settings, GENERAL).
 - No screen flashes: the white flash on every kill and the red and multicolour strobes are removed (they can
@@ -279,7 +285,8 @@ And:
 What we changed on purpose, and how to get the original back:
 - all of the speed-ups at once ..... Settings, the game's section: STOCK ST (8 MHz everywhere, the game's
   own frame rate, no remaster; your controls stay)
-- 50 frames a second ............... --cpu=1, or grid_50fps=0, d2_50fps=0, photonstorm_50fps=0
+- 50 frames a second ............... STOCK ST, --cpu=1, or grid_50fps=0, d2_50fps=0, photonstorm_50fps=0,
+  llamazap_50fps=0 (settings.txt)
 - the remaster, run-ahead, CRT .... F8, F7 (0), F9 (off), or Settings
 - no flashes ....................... --flashes, trip_calm_background=0, hc_strobes=1; Llamatron's kill
   flash alone: Settings, KILL FLASH (WHITE as the original, or a softer BLUE)

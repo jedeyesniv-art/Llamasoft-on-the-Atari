@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "cpu.h"
+#include "savestate.h"
 #include "log.h"
 
 namespace game {
@@ -124,8 +125,7 @@ bool Hook(st::Machine& m, const char* name, uint32_t off, uint16_t opcode, uint3
     LOG("hook %s: unexpected code at $%X, not installed", name, off);
     return false;
   }
-  Put16(m, a, 0x4AFC);
-  m.AddHook(a, [fn](st::Machine& running) { fn(running); });
+  m.Hook(a, [fn](st::Machine& running) { fn(running); });
   LOG("hook %s installed", name);
   return true;
 }
@@ -145,6 +145,10 @@ Shot g_saved_shots[kShotSlots];
 }
 void SaveAheadState() { std::copy(std::begin(g_shots), std::end(g_shots), g_saved_shots); }
 void RestoreAheadState() { std::copy(std::begin(g_saved_shots), std::end(g_saved_shots), g_shots); }
+// Savestates: the analog shots' exact positions and velocities (the game's own are whole pixels).
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("llamatron", [](auto& io) { io(g_shots); });
+}
 bool AnalogAim() { return g_analog; }
 bool ShotFraction(const st::Machine& m, uint32_t slot, float* fx, float* fy) {
   uint32_t base = m.TextBase() + kShots, i = (slot - base) / 16;
@@ -166,8 +170,7 @@ void ApplyPatches(st::Machine& m, const Options& o) {
     // white as the original or blue (llamatron_kill_flash); every other list still leaves the background black.
     const uint32_t a = m.TextBase() + 0x53DA;
     if (Get16(m, a) == 0x33C0 && Get16(m, a + 2) == 0x00FF && Get16(m, a + 4) == 0x8240) {
-      Put16(m, a, 0x4AFC);
-      m.AddHook(a, [](st::Machine& running) {
+      m.Hook(a, [](st::Machine& running) {
         const uint32_t t = running.TextBase();
         if (g_kill_flash && (cpu::Get(cpu::A0) & 0xFFFFFF) == t + 0x25E6 + 2) {
           const uint16_t d0 = uint16_t(cpu::Get(cpu::D0));

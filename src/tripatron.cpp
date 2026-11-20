@@ -10,6 +10,7 @@
 
 #include "log.h"
 #include "music.h"
+#include "savestate.h"
 #include "settings.h"
 
 namespace trip {
@@ -518,6 +519,17 @@ void SetTestPad(const TestPad& t) {
 }
 
 void Resync() { g_resync = true; }
+
+// Savestates: keys held / due on the ST, the light's motion (sub-pixel steps, flow, the music's orbit), the paint
+// pressure, the wheels and clicks in progress, the starfield flight.
+namespace {
+const bool kStateRegistered = savestate::RegisterFields("tripatron", [](auto& io) {
+  io(g_taps)(g_later)(g_effect)(g_symmetry)(g_palette)(g_number)(g_latch)(g_held)(g_px)(g_py)(g_fvx)(g_fvy)(g_paint);
+  io(g_wheel)(g_lb_frames)(g_rb_frames)(g_y_frames)(g_y_used)(g_family)(g_wheel_sel)(g_wheel_x)(g_wheel_y)(g_pre);
+  io(g_cell)(g_dpad_frames)(g_flying)(g_base_svz)(g_fly_svz)(g_fly_spin)(g_spin_acc)(g_click);
+  io(g_was_music)(g_heard)(g_cx)(g_cy)(g_angle)(g_music_time)(g_last_symmetry)(g_pulse)(g_beats);
+});
+}  // namespace
 
 // Music (Neon's analysis, music.h) while performing: the light source orbits a centre the player moves (left
 // stick / mouse) - radius from the bass, speed from the mids, a shimmer from the treble; beats pulse pattern

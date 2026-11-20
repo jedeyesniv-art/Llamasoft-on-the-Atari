@@ -325,6 +325,7 @@ double Machine::FramePhase() const {
 double Machine::FrameHz() const { return Is60Hz() ? kCpuHz / 133604.0 : kCpuHz / 160256.0; }
 
 bool Machine::RunFrame() {
+  if (!hooks_pending_.empty()) PlacePendingHooks();
   // A frame is 313 lines of 512 cycles (50 Hz) or 263 of 508 (60 Hz); the 200 displayed lines start at line 63
   // (34); a line's display ends 376 cycles into it - then it's drawn and timer B counts it.
   const bool hz60 = Is60Hz();
@@ -966,7 +967,7 @@ std::string Machine::FileName(uint32_t a) {
 bool Machine::IllegalOpcode(int) {
   uint32_t pc = cpu::Get(cpu::PPC) & 0xFFFFFF;
   if (auto hook = hooks_.find(pc); hook != hooks_.end()) {
-    hook->second(*this);
+    hook->second.fn(*this);
     return true;
   }
   if (pc < kRomBase || pc >= kRomBase + kRomSize) return false;
@@ -1923,5 +1924,6 @@ void Machine::SaveFile(const std::string& name) {
 }
 
 #include "machine_falcon.inc"
+#include "machine_state.inc"
 
 }  // namespace st
