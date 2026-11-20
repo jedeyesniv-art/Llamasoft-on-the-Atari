@@ -188,6 +188,14 @@ ew\llamazap\manual-scans: the 18 hi_res spreads, English = spreads 3 (right) to 
   divisor (llamazap_50fps), A every 6 s outside play (intro, menus, game over), key 6 on SELECT SHIP, then right /
   left 6 s each (fire let go 20 frames at the turn), drifting up / down; ready = in a stage (~2240 frames). CPU 1.
   Steady 0.54 ms a launcher frame. Test: --preview-test=llamazap.
+- Polish (2026-11-20, owner): the how-to-play page rewritten (what the game is, every pad control, the ship
+  pick, the hold-LB menu; Tools-free: columns aligned for Rename, 20 lines so it stays 2x at 1280 x 800);
+  remapping (remap.cpp kLlamazap: FIRE (A) {A, RT}, FIRE (C) X, JUMP / LOCK (B) B, POWER-UP MENU LB, CHANGE
+  SHIP R3, OPTION Y, the d-pad; llamazap.cpp reads pad::Now(), which the remap already feeds; verified B's
+  function moved to Y with --remap-test); STOCK FALCON (llamazap_stock: divisor 2, no remaster / run-ahead, the
+  68030's own 16 MHz; verified). Pause: VBL routine $1411A and $2B449 = 1; the game reads Esc in play only (it
+  aborts to the start menu through $274EC), not paused - so B paused taps Pause, then Esc once play runs
+  (g_quit_frames; hint "PAUSED ... B: quit to the start menu"). Verified: back at the start menu.
 - Next (ideas): owner's verdict on the right-stick keypad; remap list.
 
 ## Remaster (2026-11-02, branch remaster; PLAN-NEXT-LEVEL.md step 2, pilot Photon Storm)

@@ -157,6 +157,8 @@ const std::vector<Item>& Items() {
        "The sound effects against the music. 1 = as the game plays them (about 10 dB over the music; 4-bit, recorded hot)."},
       {"llamazap", "STEREO", "llamazap_stereo", Kind::kToggle, 1, 0, 1, 1, {},
        "The music's voices left and right as the game pans them (the Falcon's own stereo). Off: mono."},
+      {"llamazap", "STOCK FALCON", "llamazap_stock", Kind::kToggle, 0, 0, 1, 1, {},
+       "The Falcon as it was: the game's own 25 frames a second on every screen, no remaster, no run-ahead. Your controls stay. For masochists.", true},
 
       {"tripatron", "REACT TO MUSIC", "trip_music", Kind::kChoice, 0, 0, 2, 1, {"OFF", "PULSE", "FULL"},
        "Follows whatever the PC is playing ({L3} / F12). Full also changes palettes and effects on the beat."},

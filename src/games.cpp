@@ -22,7 +22,7 @@ const char* const kGenericHelp[] = {
     "{A}                    fire",
     "RIGHT STICK          mouse   ({RT} left button, {LT} right)",
     "{START}  Space         {B}  Esc",
-    "{BACK}                 settings ({B} there: back to the disks)", "",
+    "{BACK}                 settings ({X} there: back to the disks)", "",
     "Keyboard and mouse: as on the ST.",
 };
 
@@ -50,7 +50,7 @@ std::vector<Known> KnownGames() {
             "{RB} AT THE TITLE      analog aim on / off",
             "{START}                pause    ({Y}: the tentacle)",
             "{B} ON THE PAUSE SCREEN  quit to the title",
-            "{BACK}                 settings   ({B} there: back to the disks)", "",
+            "{BACK}                 settings   ({X} there: back to the disks)", "",
             "Keyboard: WASD + Space, cursors + Enter, P pause"};
   g.year = 1991;  // version 1.0, 20 March 1991 (its scroller)
   add(g, "TRON1MEG.PRG");
@@ -69,7 +69,7 @@ std::vector<Known> KnownGames() {
             "{START}                pause",
             "{B} ON THE PAUSE SCREEN  quit to the title",
             "TITLE: {X} OPTIONS   {Y} GAME SECRETS   {LB} MORE INFO",
-            "{BACK}                 settings   ({B} there: back to the disks)", "",
+            "{BACK}                 settings   ({X} there: back to the disks)", "",
             "The mouse works too: the original controls."};
   g.year = 1989;  // Atarimania, MobyGames (Wikipedia says 1991)
   g.docs_in_game = true;  // GAME SECRETS: the title's own manual pages (gridrunner.cpp StartDocs)
@@ -137,7 +137,7 @@ std::vector<Known> KnownGames() {
                         "                     (aim with the left stick alone)",
                         "{START}                pause",
                         "{B} ON THE PAUSE SCREEN  back to the menu",
-                        "{BACK}                 settings   ({B} there: back to the disks)",
+                        "{BACK}                 settings   ({X} there: back to the disks)",
                         "A SECOND PAD         player 2 (the goat) in two-player", "",
                         "Keyboard: cursor keys + Space, P pause, O resume"};
   {  // the STE build (listed just before): the same page (once it is written)
@@ -187,7 +187,7 @@ std::vector<Known> KnownGames() {
                         "(Settings: CONTROL SCHEME = stick thrust, the old way)",
                         "{START}               pause",
                         "INITIALS            d-pad letter, {A} fix, {X} delete",
-                        "{BACK}                 settings   ({B} there: back to the disks)", "",
+                        "{BACK}                 settings   ({X} there: back to the disks)", "",
                         "60 Hz, as the arcade (defender2_60hz=0: 50).",
                         "Keyboard: Ctrl up, LShift down, Return thrust,",
                         "Alt reverse, # fire, RShift smart bomb."};
@@ -215,7 +215,7 @@ std::vector<Known> KnownGames() {
                         "(Settings: CONTROL SCHEME = stick thrust, the old way)",
                         "{START}                pause",
                         "HIGH SCORE NAME      up/down letter, {A} enter it",
-                        "{BACK}                 settings   ({B} there: back to the disks)", "",
+                        "{BACK}                 settings   ({X} there: back to the disks)", "",
                         "Mouse: up/down, left thrust, right reverse;",
                         "Left Shift fire, Control smart bomb, Alt shield."};
   // Photon Storm (Arc / Llamasoft 1990), PHOTON.YAK (Automation-packed TOS program) on a compilation disk with
@@ -239,7 +239,7 @@ std::vector<Known> KnownGames() {
                         "{LB} / {RB} (HOLD)       single shots, not the spread",
                         "{START}                pause",
                         "{B} ON THE PAUSE SCREEN  quit to the title",
-                        "{BACK}                 settings   ({B} there: back to the disks)",
+                        "{BACK}                 settings   ({X} there: back to the disks)",
                         "TITLE: {A} = 1 PLAYER, {X} = 2 PLAYERS,",
                         "{Y} = 360 TWIN STICK / ORIGINAL CONTROLS", "",
                         "Mouse: where it points from the middle = the",
@@ -257,23 +257,27 @@ std::vector<Known> KnownGames() {
   // Docs: the manual's English pages, typed from Atarimania's scans (owner 2026-11-20; res\docs, the release's
   // game\docs).
   k.back().game.docs_text = "LLAMAZAP.TXT";
-  k.back().game.help = {"LLAMAZAP  -  JEFF MINTER, FALCON030 1993", "",
-                        "Defend the beasts of the galaxy. (The Falcon's",
-                        "Jaguar pad: the keypad buys power-ups.)", "",
-                        "LEFT STICK / D-PAD   move",
-                        "{A} OR {RT}            fire (the pad's A)",
-                        "{X}                    fire (C)",
-                        "{B}                    jump / lock the fire angle (B)",
-                        "R3                   keypad 1 (power-ups)",
-                        "{LB} (HOLD)            power-up menu: the game stops,",
-                        "                     right stick picks, let go = buy",
-                        "SELECT SHIP (after R3): {X} PHOENIX, {A} FALCON,",
-                        "                     {B} CONDOR",
-                        "LLAMATRONIC, SON OF LLAMATRON: RIGHT STICK aims",
-                        "{Y}                    option      {START} pause",
-                        "{BACK}                 settings   ({B} there: back to the disks)", "",
+  k.back().game.help = {
+                        "LLAMAZAP  -  JEFF MINTER, FALCON030 1993",
+                        "",
+                        "Save the galaxy's beasts over 25 stages: fly a ship,",
+                        "and every 5th stage fight on hoof (its controls show",
+                        "before it starts). Kills drop tokens: they buy power-ups.",
+                        "",
+                        "LEFT STICK / D-PAD   fly / move",
+                        "{A} OR {RT}              fire (hold)          {X}  fire too (C)",
+                        "{B}                    on hoof: jump    in a ship: lock aim",
+                        "{LB} HOLD              power-up menu: the game stops, the",
+                        "                     right stick picks one, let go to buy it",
+                        "{R3}                   change ship (1 token)",
+                        "PICK A SHIP          {X} PHOENIX   {A} FALCON   {B} CONDOR (easy)",
+                        "RIGHT STICK          aims the shots on the Llamatron stages",
+                        "{START}                pause  ({B} there: back to the start menu)",
+                        "{Y}                    player names menu: rename the one picked",
+                        "{BACK}                 settings ({X} there: back to the disks)",
+                        "",
                         "Keyboard: cursors, Z fire, X B, C, digits keypad,",
-                        "O option, P pause."};
+                        "O option, P pause, Esc start menu."};
   wip("hardcore", "HARDCORE", "HARDCORE.PRG", "HARDCORE  -  YAK, 1991 (UNFINISHED)",
       "Never released: Yak's unfinished blaster.", {0.30f, 0.06f, 0.06f, 1}, {0.85f, 0.85f, 0.85f, 1});
   // VBL $168F2 calls the hook at $338BA: $104EA title, $145D0 level intro, $10C82 play, $11242 paused.
@@ -291,7 +295,7 @@ std::vector<Known> KnownGames() {
                         "{A} OR {RT}              side lasers",
                         "{Y}                    puck intelligence on / off",
                         "{START}                pause",
-                        "{BACK}                 settings   ({B} there: back to the disks)", "",
+                        "{BACK}                 settings   ({X} there: back to the disks)", "",
                         "Mouse: move, left button lasers; P pause, O resume,",
                         "S strobes (off at the start), N next level."};
   return k;

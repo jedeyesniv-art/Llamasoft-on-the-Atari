@@ -65,6 +65,13 @@ int g_stage = 0;
 constexpr uint32_t kFireDir = 0x525F2, kFireFollow = 0x1C460, kFireFollowDo = 0x1C46E, kFireFollowSkip = 0x1C480;
 constexpr uint32_t kPadB = 0x4E8B9;
 bool g_twin_stick = true;
+// Paused (Start): the pause VBL routine $1411A runs and $2B449 = 1. The game takes Esc in play only (aborts to
+// the start menu, through its fade $274EC), not while paused: B there (owner 2026-11-20) taps Pause to carry on,
+// then Esc once play runs again.
+constexpr uint32_t kPausedFlag = 0x2B449, kPauseVbl = 0x1411A;
+constexpr uint8_t kEsc = 0x01;
+int g_quit_frames = 0;  // > 0: quitting from the pause screen, frames since B
+int g_esc_at = -1;      // the frame Esc went down
 bool g_stereo = true;  // llamazap_stereo: the voices panned as the game sends them
 float g_fx_volume = 1;  // llamazap_fx_volume: the effects voice (the game sends it ~10 dB over the music)
 int g_aim = -1;  // the right stick's direction in the game's numbering, -1 = not pushed
@@ -86,6 +93,7 @@ bool LlamatronStage(const st::Machine& m) {
   uint32_t r = Get32(m, kVblRoutine);
   return r == 0x12C90 || r == 0x12C6C;
 }
+bool Paused(const st::Machine& m) { return m.Ram()[kPausedFlag] == 1 && Get32(m, kVblRoutine) == kPauseVbl; }
 bool KeypadLevel(const st::Machine& m) {
   if (!InLevel(m)) return false;
   switch (Get32(m, kVblRoutine)) {
@@ -640,7 +648,7 @@ void Reset() {
 // Savestates: the right stick's aim and a keypad press in progress; the power-up menu is closed by a load.
 namespace {
 const bool kStateRegistered = savestate::RegisterFields("llamazap", [](auto& io) {
-  io(g_aim)(g_lb_was)(g_stick_blocked)(g_inject_key)(g_inject_frames);
+  io(g_aim)(g_lb_was)(g_stick_blocked)(g_inject_key)(g_inject_frames)(g_quit_frames)(g_esc_at);
   if constexpr (std::is_same_v<std::decay_t<decltype(io)>, savestate::Reader>) g_menu.open = false;
 });
 }
@@ -696,6 +704,21 @@ void Update(st::Machine* m) {
   const bool ship_select = int16_t(Get16(*m, kShipSelect)) >= 0 && KeypadLevel(*m);
   if (MenuFrame(m, p, ship_select)) {
     m->SetJagpad(0);
+    return;
+  }
+  // B on the pause screen: back to the start menu (unpause, then Esc).
+  if (g_quit_frames == 0 && Paused(*m) && pad::Pressed(SDL_GAMEPAD_BUTTON_EAST)) {
+    g_quit_frames = 1, g_esc_at = -1;
+    LOG("llamazap: quit to the start menu from the pause screen");
+  }
+  if (g_quit_frames > 0) {
+    const int f = g_quit_frames++;
+    if (f > 3 && g_esc_at < 0 && !Paused(*m)) m->KeyEvent(kEsc, true), g_esc_at = f;
+    if ((g_esc_at >= 0 && f >= g_esc_at + 3) || f > 150) {
+      if (g_esc_at >= 0) m->KeyEvent(kEsc, false);
+      g_quit_frames = 0, g_esc_at = -1;
+    }
+    m->SetJagpad(f <= 3 ? st::kJagPause : 0);
     return;
   }
   // SELECT SHIP: X / A / B are the ships (left, middle, right), nothing else then.
@@ -841,7 +864,10 @@ void AfterFrame(st::Machine* m) {
   remaster_falcon::FrameShown(*m, buffer, x, y);
 }
 
-const char* Hint(st::Machine*) { return nullptr; }
+const char* Hint(st::Machine* m) {
+  if (m && Paused(*m) && g_quit_frames == 0) return "PAUSED   Start: resume   B: quit to the start menu";
+  return nullptr;
+}
 
 void DrawOverlay(SDL_Renderer* r, float view_h) {
   if (!g_menu.open) return;

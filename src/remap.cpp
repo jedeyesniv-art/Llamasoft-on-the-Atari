@@ -144,6 +144,22 @@ const std::vector<Function> kPhotonStorm = {
     {"right", "RIGHT", {RIGHT}, "Points the ship, as the left stick."},
 };
 
+// Llamazap (llamazap.cpp): the Jaguar pad's A / B / C / Option, the keypad's 1 and our power-up menu.
+constexpr int R3 = SDL_GAMEPAD_BUTTON_RIGHT_STICK;
+const std::vector<Function> kLlamazap = {
+    {"fire", "FIRE (A)", {A, RT}, "The pad's A: fire (hold for rapid fire); on the menus, choose. Picking a ship: the Falcon."},
+    {"firec", "FIRE (C)", {X}, "The pad's C: fires too (turns the shots on Llamatronic). Picking a ship: the Phoenix."},
+    {"b", "JUMP / LOCK (B)", {B},
+     "The pad's B: jump on foot, lock the fire angle on the Llamatron stages. Picking a ship: the Condor. Paused: quit to the start menu."},
+    {"menu", "POWER-UP MENU (HOLD)", {LB}, "Held: the game stops and shows what your tokens buy; the right stick picks, let go to buy."},
+    {"newship", "CHANGE SHIP (KEYPAD 1)", {R3}, "Keypad 1: choose a ship again (costs a token)."},
+    {"option", "OPTION", {Y}, "The pad's Option: on the player names, rename the one picked."},
+    {"up", "UP", {UP}, "Moves, as the left stick."},
+    {"down", "DOWN", {DOWN}, "Moves, as the left stick."},
+    {"left", "LEFT", {LEFT}, "Moves, as the left stick."},
+    {"right", "RIGHT", {RIGHT}, "Moves, as the left stick."},
+};
+
 const std::vector<Function> kGeneric = {
     {"fire", "JOYSTICK FIRE", {A, X}, "The joystick's fire button."},
     {"esc", "ESC", {B}, "The Esc key."},
@@ -189,6 +205,7 @@ const std::vector<Function>& ListFor(const std::string& id, input::Mode mode, st
   if (id == "rmc" || id == "rmctt") return kRmc;
   if (id == "hardcore") return kHardcore;
   if (id == "photonstorm") return kPhotonStorm;
+  if (id == "llamazap") return kLlamazap;
   if (id == "andes") {
     bool arcade = settings::Get("andes_controls", 1) != 0;
     *prefix = arcade ? "andes_arcade" : "andes_stick";

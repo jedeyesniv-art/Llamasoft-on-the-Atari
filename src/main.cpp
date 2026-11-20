@@ -600,7 +600,9 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     LOG("booting at 60 Hz (%s_60hz=1)", c.game->id.c_str());
   }
   games::SetStock(c.game && !c.in_game_docs && games::StockSetting(*c.game));
-  if (games::Stock()) LOG("stock ST: 8 MHz everywhere, the original frame rate, no remaster (%s)", c.game->id.c_str());
+  if (games::Stock())
+    LOG("stock %s everywhere, the original frame rate, no remaster (%s)",
+        c.game->falcon ? "Falcon: 16 MHz" : "ST: 8 MHz", c.game->id.c_str());
   LOG("analog aim %s, cpu speed during play x%d", game::AnalogAim() ? "on" : "off", games::Stock() ? 1 : opt.cpu_speed);
 
   SDL_Window* window = c.window;
