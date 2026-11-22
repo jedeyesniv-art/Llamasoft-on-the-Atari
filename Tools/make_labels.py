@@ -59,6 +59,11 @@ SCANS = {'llamazap': ('llamazap_d7_3.jpg', (68, 2, 380, 274)),
 # Llamatron's from its ST Format cover disk - the side strip kept, the wordmark scaled up, the rest gone.
 PICTURES = {'hardcore': 'hardcore.png', 'rmctt': 'revenge_of_the_mutant_camels_tt_[llamasoft].png'}
 COMPOSED = {'llamatron': 'llamatron_st_format_d7.jpg'}
+# Disk photos in art/ (owner 2026-11-22): the print on a real disk as the label - the box (left, top, right, bottom
+# pixels, already about the label's shape) and rectangles painted out (each row blended across from its left edge to
+# its right). Trip-A-Tron: the 1988 Llamasoft disk, printed straight on the blue plastic; it's the Amiga one, so its
+# AMIGA badge goes (owner). These come before the drawn sheets.
+PHOTOS = {'tripatron': ('trip disk.jpg', (122, 62, 382, 261), [(136, 174, 195, 199)])}
 # Cartridges (owner 2026-11-22, art/): a photo of the real cart, its label's box (left, top, right, bottom pixels)
 # and the cart's plastic colour - the label (about 2:1) fitted whole onto that colour.
 CARTS = {'defender2000': ('1397067-item-big-AJAG-DEFENDER-A-1.jpg', (64, 144, 540, 366), (46, 46, 50))}
@@ -123,6 +128,22 @@ def from_scan(name):
         return None
     return Image.open(path).convert('RGB').crop(box).resize((W * 3 // 4, H * 3 // 4), Image.LANCZOS)  # (the scans'
     # own resolution, near enough: the launcher scales any label)
+
+
+def from_photo(name):
+    """A disk's own print from a photo of it (PHOTOS), with the rectangles painted out. None if absent."""
+    photo, box, paint_out = PHOTOS[name]
+    path = os.path.join(ROOT, 'art', photo)
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert('RGB')
+    a = np.asarray(im, dtype=np.float32).copy()
+    for x0, y0, x1, y1 in paint_out:
+        t = np.linspace(0, 1, x1 - x0 + 1, dtype=np.float32)[None, :, None]
+        left, right = a[y0:y1 + 1, x0 - 1:x0], a[y0:y1 + 1, x1 + 1:x1 + 2]
+        a[y0:y1 + 1, x0:x1 + 1] = left * (1 - t) + right * t
+    im = Image.fromarray(a.clip(0, 255).astype(np.uint8))
+    return im.crop(box).resize((W * 3 // 4, H * 3 // 4), Image.LANCZOS)
 
 
 def from_picture(name):
@@ -263,6 +284,8 @@ def main():
     for name, photo, box, touch_up in LABELS:
         path = os.path.join(ROOT, 'res', 'labels', photo)
         img = from_scan(name) if name in SCANS else None
+        if img is None and name in PHOTOS:
+            img = from_photo(name)
         if img is None and name in PICTURES:
             img = from_picture(name)
         if img is None and name in CARTS:

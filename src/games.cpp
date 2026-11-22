@@ -77,7 +77,8 @@ std::vector<Known> KnownGames() {
 
   g = {};
   g.id = "tripatron", g.name = "TRIP-A-TRON", g.program = "TRIP.PRG", g.install = "TRIP1.TOS";
-  g.mode = input::Mode::kTripATron, g.body = {0.10f, 0.42f, 0.22f, 1}, g.band = {0.95f, 0.30f, 0.75f, 1};
+  // (Its blue: the 1988 disk in art/trip disk.jpg, whose print is its label - owner 2026-11-22.)
+  g.mode = input::Mode::kTripATron, g.body = {0.25f, 0.42f, 0.79f, 1}, g.band = {0.95f, 0.30f, 0.75f, 1};
   g.help = {"TRIP-A-TRON  -  JEFF MINTER, 1988 (SHAREWARE 1992)", "",
             "A light synthesiser: play light to your music.", "",
             "LEFT STICK  the light     RIGHT STICK  spirograph",
