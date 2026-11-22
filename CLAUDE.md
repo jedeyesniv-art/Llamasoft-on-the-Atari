@@ -1,6 +1,6 @@
 # Llamasoft on the Atari (was "Llamasoft on the ST" until 3.0.0, "Llamatron PC" until 1.2.0) - Jeff Minter's Atari ST games, native on PC
 Title from 3.0.0 (owner 2026-11-22: "we have broadened out"; "on the ST" from 1.3.0); the exe is still llamatron.exe,
-the repo Llamatron-PC-Recomp, the zips LlamasoftOnTheAtari-<ver>; the owner's test build keeps dist\LlamasoftOnTheSTRemaster. Labels (2026-11-07): the
+the repo Llamasoft-on-the-Atari (GitHub, renamed from Llamatron-PC-Recomp 2026-11-22; old links redirect), the zips LlamasoftOnTheAtari-<ver>; the owner's test build keeps dist\LlamasoftOnTheSTRemaster. Labels (2026-11-07): the
 owner redrew every label digitally (res/labels/sheet-1..3.png, committed: no room in them); make_labels.py SHEETS
 cuts each cell, border included, scaled evenly onto white (the bottom row's cells are taller: narrower boxes).
 Real labels (2026-11-20, owner: "real where we have them", full colour): Atarimania's disk scans of Llamazap, Andes
@@ -19,7 +19,7 @@ Llamatron is shareware ("please spread this game everywhere", shareware screen a
 kept out of git (Private\). The owner downloaded the image from Jeff Minter's own site (it includes the cracked
 Gridrunner: Minter distributes that copy himself). Release (owner 2026-10-23, from 1.2.0): the zip includes the
 disk image (owner: not concerned given the games' age and provenance); the repo itself still has no game files.
-GitHub: jedeyesniv-art/Llamatron-PC-Recomp (public), releases vX.Y.Z with the windows + symbols zips.
+GitHub: jedeyesniv-art/Llamasoft-on-the-Atari (public; was Llamatron-PC-Recomp), releases vX.Y.Z with the windows + symbols zips.
 Goal: a native Windows app (SDL3) that plays well on an Xbox pad, twin-stick style. Owner's focus: controls.
 
 ## Status

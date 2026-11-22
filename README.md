@@ -307,8 +307,8 @@ Requirements: Windows, Visual Studio 2026 with the C++ workload and its Clang/LL
 come with it), Python 3 (only for the tools).
 
 ```
-git clone --recursive https://github.com/jedeyesniv-art/Llamatron-PC-Recomp
-cd Llamatron-PC-Recomp
+git clone --recursive https://github.com/jedeyesniv-art/Llamasoft-on-the-Atari
+cd Llamasoft-on-the-Atari
 cmd /c build.bat
 ```
 

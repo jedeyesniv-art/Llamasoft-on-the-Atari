@@ -419,7 +419,7 @@ Llamazap: Jeff Minter / Llamasoft, (c) 1993 Atari Corp. Defender 2000: Llamasoft
 Electronic Games, licensed to Atari Corporation.
 This PC version uses SDL 3, the Musashi 68000 emulator and SoftFloat (see licenses\THIRD-PARTY-NOTICES.txt).
 d2k.exe (Defender 2000) uses the Virtual Jaguar core and is GPL-3 (licenses\VIRTUAL-JAGUAR-GPL-3.txt); its
-source: https://github.com/jedeyesniv-art/Llamatron-PC-Recomp
+source: https://github.com/jedeyesniv-art/Llamasoft-on-the-Atari
 The remaster and the CRT shaders are this project's own. The disk labels on the start screen are scans of the
 originals (from Atarimania) where they exist, otherwise drawn by the author. Trip-A-Tron's manual: James
 "Piku" Grimwood's 2003 transcription. Photon Storm's manual: typed in by Parasite of LSD. Llamazap's manual:
