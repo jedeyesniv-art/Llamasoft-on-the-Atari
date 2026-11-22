@@ -28,13 +28,15 @@ are Tempest2k's, moved word for word: read their paths with the table here.
   It starts d2k.exe <cart> --from-launcher --userdata=... --master=<volume squared> --even=<volume_normalise>
   --fullscreen=<the launcher's mode, until d2k's own fullscreen setting is saved>, waits underneath (the game's
   window pushed to the front, as Tempest's launcher did) and comes back when it quits ("Return to launcher" in its
-  menu). Label: Tools/make_labels.py CARTS (art/1397067-item-big-AJAG-DEFENDER-A-1.jpg, the label's box fitted
-  onto the cart's grey); the disk is the cart's grey with the Jaguar red.
+  menu). On the carousel it's a Jaguar cartridge, not a disk (owner 2026-11-22; launcher.cpp DrawCartridge, Game::
+  cartridge): body, rounded grip bar, recessed label, ribs, measured from art/1397067-item-big-AJAG-DEFENDER-A-1.jpg.
+  Its label: Tools/make_labels.py CARTS (that photo's label box, cut out at its own ~2:1 shape).
 - Loudness: volume.cpp levels it to the ST games' -23 LUFS (measured -24.05: x1.128) when --even=1, times the
   launcher's master volume, times its own menu volume.
-- Packaging (Tools/package_portable.ps1): d2k.exe + d2k.pdb and licenses\VIRTUAL-JAGUAR-GPL-3.txt everywhere; the
-  cartridge and d2k_art only in the portable (play) folder, not the release zip (the leak check refuses .jag /
-  .eeprom / .state / d2k_art) - the owner hasn't decided about shipping a commercial cartridge.
+- Packaging (Tools/package_portable.ps1 Copy-D2k): d2k.exe + d2k.pdb, licenses\VIRTUAL-JAGUAR-GPL-3.txt, the
+  cartridge in game\ and d2k_art\ - in the portable folder and the release zip alike (owner 2026-11-22: "this game
+  is very old and on a system that is publicly accessible thanks to its obsolescence"). The leak check refuses
+  .eeprom / .state (saves).
 - Verified 2026-11-22: the same scripted headless run (3000 frames, into play) in Tempest2k's d2k.exe and ours gives
   byte-identical shots and audio, --d2kcheck exact; the owner's slot 1 state loads; window run native + wide + CRT++
   with the art pack (260 pictures); the launcher starts it, the saves land in userdata\defender2000, it comes back.
@@ -42,7 +44,6 @@ are Tempest2k's, moved word for word: read their paths with the table here.
   build\d2k_art by the build); src/X -> src/d2k/X; "t2k --..." test options -> d2k.exe (the same options, minus
   T2K's: --rmshot, --stick, --trace, --title, --menuback, --pauseline, --runahead); "Defender 2000.bat" -> the
   launcher or build\d2k.exe; T2K's settings (remaster, stick_mode...) don't apply.
-- Ideas: a cartridge shape on the carousel instead of a disk (the owner's photos are in art/).
 
 ## Owner's notes (C:\Tempest2k\D2K notes.txt, 2026-11-20)
 humanoid sprites in D2K mode flicker and strobe, like they're smeared out. Very jittery.

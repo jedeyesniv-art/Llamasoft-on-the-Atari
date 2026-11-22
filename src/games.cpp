@@ -312,6 +312,7 @@ Game Defender2000(const fs::path& cart) {
   Game g;
   g.id = "defender2000", g.name = "DEFENDER 2000", g.year = 1996;
   g.external = "d2k.exe";
+  g.cartridge = true;
   g.source = cart;
   g.body = {0.17f, 0.17f, 0.19f, 1}, g.band = {0.86f, 0.10f, 0.08f, 1};  // the cart's grey, the Jaguar logo's red
   g.help = {"DEFENDER 2000  -  JEFF MINTER, ATARI JAGUAR 1996",

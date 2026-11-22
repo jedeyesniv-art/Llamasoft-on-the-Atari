@@ -140,19 +140,15 @@ def from_picture(name):
 
 
 def from_cart(name):
-    """A cartridge's label from a photo of the cart (CARTS), fitted whole onto the cart's colour. None if absent."""
-    photo, box, colour = CARTS[name]
+    """A cartridge's label from a photo of the cart (CARTS): the label's box alone, at its own shape (about 2:1) - the
+    launcher draws it on its cartridge model, not a disk. None if absent."""
+    photo, box, _ = CARTS[name]
     path = os.path.join(ROOT, 'art', photo)
     if not os.path.exists(path):
         return None
     im = Image.open(path).convert('RGB').crop(box)
-    w, h = W * 3 // 4, H * 3 // 4
-    m = w // 20  # (a margin of the cart round it)
-    k = min((w - 2 * m) / im.width, (h - 2 * m) / im.height)
-    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
-    out = Image.new('RGB', (w, h), colour)
-    out.paste(im, ((w - im.width) // 2, (h - im.height) // 2))
-    return out
+    w = W * 3 // 4
+    return im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
 
 
 def ink(crop, colour, weight):

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -98,6 +99,98 @@ Place PlaceAt(float d) {
 }
 
 // The built-in labels by game id: kLabels in labels.inc (Tools/make_labels.py).
+
+// An Atari Jaguar cartridge (Defender 2000, owner 2026-11-22), in millimetres from the owner's photo of the real cart
+// (art/1397067-item-big-AJAG-DEFENDER-A-1.jpg, ~0.18 mm a pixel): a 90 x 69 x 12 body, the rounded grip bar across
+// its top (98 wide, 19 deep, overhanging both sides), the label in a recessed frame on the front, ribs below it.
+// About the floppy's size, so it sits in the carousel the same. Faces are kept when their normal faces the eye (the
+// grip's rounded faces have no simple outline winding), then drawn back to front.
+void DrawCartridge(SDL_Renderer* r, SDL_Texture* label, const Camera& cam,
+                   const std::function<V3(float, float, float)>& world, const std::function<V3(V3)>& normal,
+                   const std::function<float(V3)>& light, SDL_FColor body) {
+  constexpr float kBodyW = 45, kBodyBottom = -42, kBodyTop = 27, kBodyZ = 6;     // half width, y range, half depth
+  constexpr float kGripW = 49, kGripBottom = 26, kGripTop = 42, kGripZ = 9.5f;  // the grip bar
+  struct Face {
+    std::vector<SDL_FPoint> p;
+    float depth;
+    SDL_FColor c;
+  };
+  std::vector<Face> faces;
+  bool front_visible = false;
+  auto add = [&](const std::vector<V3>& local, V3 n_local, SDL_FColor base) {
+    V3 centre{0, 0, 0};
+    std::vector<V3> pts;
+    for (V3 q : local) pts.push_back(world(q.x, q.y, q.z)), centre = centre + pts.back();
+    centre = centre * (1.0f / float(pts.size()));
+    const V3 n = normal(n_local);
+    if (Dot(n, cam.eye - centre) <= 0) return false;  // facing away
+    Face f;
+    float dsum = 0;
+    for (V3 q : pts) {
+      float dep;
+      f.p.push_back(cam.Project(q, &dep));
+      dsum += dep;
+    }
+    f.depth = dsum / float(pts.size());
+    f.c = Shade(base, light(n));
+    faces.push_back(f);
+    return true;
+  };
+  // The body: a box (its top is inside the grip).
+  const float x0 = -kBodyW, x1 = kBodyW, y0 = kBodyBottom, y1 = kBodyTop, z0 = -kBodyZ, z1 = kBodyZ;
+  front_visible = add({{x0, y0, z1}, {x1, y0, z1}, {x1, y1, z1}, {x0, y1, z1}}, {0, 0, 1}, body);
+  add({{x0, y0, z0}, {x0, y1, z0}, {x1, y1, z0}, {x1, y0, z0}}, {0, 0, -1}, body);
+  add({{x0, y0, z0}, {x1, y0, z0}, {x1, y0, z1}, {x0, y0, z1}}, {0, -1, 0}, Shade(body, 0.8f));
+  add({{x0, y0, z0}, {x0, y0, z1}, {x0, y1, z1}, {x0, y1, z0}}, {-1, 0, 0}, Shade(body, 0.85f));
+  add({{x1, y0, z0}, {x1, y1, z0}, {x1, y1, z1}, {x1, y0, z1}}, {1, 0, 0}, Shade(body, 0.85f));
+  // The grip: a rounded rectangle (y, z) carried across x, with flat ends.
+  std::vector<std::pair<float, float>> section;  // (y, z), going round
+  {
+    // The angle a runs y = cos a, z = sin a: from the top (a = 0) to the front (pi / 2), the bottom, the back. Each
+    // quarter turn is one corner, round its own centre.
+    constexpr float kR = 5.5f, kQuarter = 1.5707963f;
+    const float cy[4] = {kGripTop - kR, kGripBottom + kR, kGripBottom + kR, kGripTop - kR};
+    const float cz[4] = {kGripZ - kR, kGripZ - kR, -kGripZ + kR, -kGripZ + kR};
+    for (int c = 0; c < 4; ++c)
+      for (int k = 0; k <= 3; ++k) {
+        const float a = kQuarter * (float(c) + float(k) / 3);
+        section.push_back({cy[c] + kR * std::cos(a), cz[c] + kR * std::sin(a)});
+      }
+  }
+  const SDL_FColor grip = Shade(body, 1.08f);
+  const float gyc = (kGripTop + kGripBottom) / 2;
+  for (size_t i = 0; i < section.size(); ++i) {
+    const auto [ya, za] = section[i];
+    const auto [yb, zb] = section[(i + 1) % section.size()];
+    const float ym = (ya + yb) / 2 - gyc, zm = (za + zb) / 2;
+    V3 n{0, yb - ya, zb - za};
+    n = {0, n.z, -n.y};  // perpendicular in (y, z)
+    if (n.y * ym + n.z * zm < 0) n = n * -1.0f;  // outward
+    add({{-kGripW, ya, za}, {kGripW, ya, za}, {kGripW, yb, zb}, {-kGripW, yb, zb}}, n, grip);
+  }
+  for (float sx : {-1.0f, 1.0f}) {
+    std::vector<V3> cap;
+    for (const auto& [y, z] : section) cap.push_back({sx * kGripW, y, z});
+    add(cap, {sx, 0, 0}, Shade(body, 0.9f));
+  }
+  std::sort(faces.begin(), faces.end(), [](const Face& a, const Face& b) { return a.depth > b.depth; });
+  for (const Face& f : faces) Polygon(r, nullptr, f.p.data(), nullptr, int(f.p.size()), f.c);
+  if (!front_visible) return;
+  // On the front: the label's recessed frame, the label, the ribs below it.
+  const V3 n_front = normal({0, 0, 1});
+  auto rect = [&](float rx0, float ry0, float rx1, float ry1, float z, SDL_FColor base, SDL_Texture* tex) {
+    V3 q[4] = {world(rx0, ry0, z), world(rx1, ry0, z), world(rx1, ry1, z), world(rx0, ry1, z)};
+    SDL_FPoint p[4];
+    for (int i = 0; i < 4; ++i) p[i] = cam.Project(q[i]);
+    SDL_FPoint uv[4] = {{0, 1}, {1, 1}, {1, 0}, {0, 0}};
+    Polygon(r, tex, p, tex ? uv : nullptr, 4, Shade(base, light(n_front)));
+  };
+  const float z = kBodyZ + 0.05f;
+  rect(-44, -21, 44, 24, z, Shade(body, 0.55f), nullptr);         // the recess
+  rect(-42.5f, -19.5f, 42.5f, 22.5f, z + 0.03f, {1, 1, 1, 1}, label);  // the label (about 2.1 : 1, as printed)
+  for (float ry = -25; ry > kBodyBottom + 2; ry -= 2.2f)            // the ribs
+    rect(-43, ry - 0.7f, 43, ry, z + 0.02f, Shade(body, 0.6f), nullptr);
+}
 
 }  // namespace
 
@@ -465,6 +558,10 @@ void Launcher::DrawDisk(int game, float w, float h) {
     return true;
   };
   const SDL_FColor body = (*games_)[size_t(game)].body;
+  if ((*games_)[size_t(game)].cartridge) {
+    DrawCartridge(r_, labels_[size_t(game)], cam, world, normal, [&](V3 n) { return lit({}, n, 0); }, body);
+    return;
+  }
   std::vector<V3> front, back;
   for (int i = 0; i < 5; ++i) front.push_back(world(kOutline[i][0], kOutline[i][1], kThick / 2));
   for (int i = 4; i >= 0; --i) back.push_back(world(kOutline[i][0], kOutline[i][1], -kThick / 2));

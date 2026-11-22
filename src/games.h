@@ -51,6 +51,7 @@ struct Game {
   // Not an ST game: another program next to ours runs it as its own process (d2k.exe: Defender 2000 on the Atari
   // Jaguar, owner 2026-11-22), given `source` (its cartridge image), our volume and its save folder.
   std::string external;
+  bool cartridge = false;  // drawn as a cartridge on the carousel, not a disk (a Jaguar cart: Defender 2000)
   // Choices on the how-to-play page (trainers, a user disk's program), saved as settings <id>_<key>.
   struct Option {
     std::string key, label;

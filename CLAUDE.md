@@ -47,7 +47,8 @@ elease\Llamatron-<ver>-windows.zip (no game
   launcher as its own process (src/external.cpp, main.cpp RunExternal) from a cartridge on the carousel (games.cpp
   Defender2000: a .jag with "Defender" in its name, when d2k.exe is there; label from art/ via make_labels.py CARTS).
   Cartridge + art pack in Private\d2k (not in git); saves userdata\defender2000. Removed from Tempest2k the same day.
-  The release zip has d2k.exe but not the cartridge / art pack (owner to decide).
+  The release zip ships the cartridge and art pack too (owner 2026-11-22). On the carousel it is a Jaguar cartridge
+  model (launcher.cpp DrawCartridge; Game::cartridge), not a disk.
 
 ## Llamazap: the Atari Falcon030 (2026-11-19, branch falcon; owner: "pretty flawless")
 - Llamazap (Llamasoft 1993, Falcon030; "(c) 1993 Atari Corp." on its title): Private\new\llamazap\Llamazap.st (from
