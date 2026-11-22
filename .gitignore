@@ -7,3 +7,4 @@
 __pycache__/
 /res/labels/*-photo.jpg
 /third_party/realesrgan/
+/build-pgo-gen/

@@ -45,6 +45,34 @@ are Tempest2k's, moved word for word: read their paths with the table here.
   T2K's: --rmshot, --stick, --trace, --title, --menuback, --pauseline, --runahead); "Defender 2000.bat" -> the
   launcher or build\d2k.exe; T2K's settings (remaster, stick_mode...) don't apply.
 
+## Performance (2026-11-22, owner: "much lower than expected" on the Steam Deck)
+- Measured here (Ryzen 9700X; a Deck core is ~2-2.5x slower): headless 4.12 ms a frame (mean of 6 states), of which
+  the core ~75% (GPU interpreter gpu.c ~36%, DSP ~10%, 68K, blitter, OP) and our capture ~25% (OnOp's per-pixel
+  decode ~12%, MatchItems / BurstFit ~8%). The window loop is serial: emulate + draw must fit one refresh, so on a
+  slower CPU a slow frame misses vsync and the next loop catches up 2-4 frames.
+- Done: OnOp decodes 16 / 8-bit unscaled rows directly, Pixel uses shifts (was two divisions a pixel); MatchItems'
+  displacement histograms in flat tables (were std::map in items-squared loops); BurstFit's scale search looks up a
+  grid of the current items (was every item per test). BuildAtlas clears and uploads only the rows used: the atlas
+  never shrinks, so after a busy moment (level end: 2048 square) every frame cleared and sent 16 MB. Result: headless
+  4.12 -> 3.67 ms; window "picture" 0.91 -> 0.42 ms a present, "emulate" 2.33 -> 1.90. Pictures identical (17 / 18
+  window shots byte-identical; the 18th differs between two runs of the old exe too), --d2kcheck exact.
+- Tools: Tools/d2k/bench.ps1 (headless fps per state), Tools/d2k/same_picture.ps1 -Ref <old exe> (window shots at
+  D2K_FORCE_A=0.5, CRT off: CRT++ trails follow the clock), D2K_SAMPLE=<file> (src/d2k/sampler.cpp: samples the main
+  thread's pc every ~1 ms, headless and window) + Tools/d2k/sample_report.py (needs llvm-symbolizer on PATH: the
+  MSVC tools' bin\HostX64\x64). T2K_PERF now also counts the atlas size / rows sent.
+- Deck log (owner, LCD 60 Hz, 1280 x 800): emulate ~13 ms of the 16.7 (gameplay), picture + compose ~2.5, present
+  ~1.5: the core is the limit, the GPU (CRT++) is not. Misses then catch up 2-4 frames (85-90 ms loops): the menus'
+  dips into the 20s. The core's GPU / DSP idle-loop fast-forward (virtualjaguar_risc_idle_skip) is already on (its
+  title database enables it for Defender 2000; off = 40% slower), and its GPU interpreter is direct-threaded already.
+- Round 2: OnOp's scaled column table is kept between calls (it was rebuilt every half-line, before the "row already
+  taken" return: the title's logo), scaled and unscaled 16 / 8-bit rows with back-to-back phrases read in one run.
+  PGO wired in (CMakeLists.txt: res/pgo/d2k.profdata, 0.7 MB, from Tools/d2k/pgo.bat; D2K_PGO_GENERATE=ON = the
+  instrumented build in build-pgo-gen; a changed profile rebuilds vj_core / d2k). Headless 3.67 -> 3.43 (code) ->
+  3.04 ms (PGO); boot + title + hall of fame (3300 frames) 9.33 -> 8.14 -> 7.09 s. 17 / 18 window shots identical (the
+  same 18th), --d2kcheck exact on the title screens and every bench state.
+- Next candidates: emulation on its own thread (overlaps draw + present, ~3-4 ms of the Deck's frame; Draw reads
+  ~20 globals of the capture - g_cur, g_items, g_ghosts, g_prev_scene, g_gpu... - which would need double buffering).
+
 ## Owner's notes (C:\Tempest2k\D2K notes.txt, 2026-11-20)
 humanoid sprites in D2K mode flicker and strobe, like they're smeared out. Very jittery.
 In Classic and Defender Plus modes, there is a large black square in the middle of the playfield that obscures the ship and many elements. Enemies draw over it, but other elements don't. In addition, the enemy sprites sometimes glitch and move position very briefly, making quick movements.

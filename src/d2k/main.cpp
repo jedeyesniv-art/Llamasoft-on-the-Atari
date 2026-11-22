@@ -40,6 +40,7 @@
 #include "jagsurvey.h"
 #include "menu.h"
 #include "perf.h"
+#include "sampler.h"
 #include "runlog.h"
 #include "settings.h"
 #include "volume.h"
@@ -411,6 +412,7 @@ int main(int argc, char** argv) {
   if (headless) {
     std::vector<int16_t> all_audio;
     auto t0 = std::chrono::steady_clock::now();
+    sampler::Start();   // (test: D2K_SAMPLE=<file>)
     for (int f = 0; f < frames; ++f) {
       host::Input in;
       bool thrust = false, reverse = false;
@@ -462,6 +464,7 @@ int main(int argc, char** argv) {
         }
     }
     double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    sampler::Stop();
     std::fprintf(stderr, "%d frames in %.2f s (%.0f fps, %.1fx real time)\n", frames, secs, frames / secs,
                  frames / secs / host::Fps());
     if (!wav.empty()) WriteWav(wav, all_audio, uint32_t(host::SampleRate()));
@@ -509,6 +512,7 @@ int main(int argc, char** argv) {
   static const bool pace_log = std::getenv("PACE_LOG") != nullptr;
   uint64_t pace_draw = 0;
   double pace_t = 0;
+  sampler::Start();   // (test: D2K_SAMPLE=<file>)
   while (running) {
     // Frame rate (setting frame_cap: 0 = the display's, 60 = at most 60 pictures a second - less work, e.g. the Steam
     // Deck at 90 Hz). Slots on a fixed 60 Hz grid; each picture goes to the first refresh after its slot (on 90 Hz:
@@ -817,6 +821,7 @@ int main(int argc, char** argv) {
     }
   }
   perf::Flush();
+  sampler::Stop();
 
   eeprom.SaveIfChanged();
   host::Unload();

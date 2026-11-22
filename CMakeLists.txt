@@ -114,12 +114,34 @@ add_executable(d2k WIN32
   ${CMAKE_BINARY_DIR}/d2k.rc
   src/d2k/main.cpp src/d2k/host.cpp src/d2k/settings.cpp src/d2k/volume.cpp src/d2k/runlog.cpp src/d2k/menu.cpp
   src/d2k/pixfont.cpp src/d2k/d2k_menu.cpp src/d2k/controls.cpp src/d2k/traps.cpp src/d2k/gpulog.cpp
-  src/d2k/jagsurvey.cpp src/d2k/d2k.cpp src/d2k/d2k_bonus.cpp src/d2k/d2k_stars.cpp src/d2k/perf.cpp src/d2k/xbr.cpp
+  src/d2k/jagsurvey.cpp src/d2k/d2k.cpp src/d2k/d2k_bonus.cpp src/d2k/d2k_stars.cpp src/d2k/perf.cpp src/d2k/sampler.cpp src/d2k/xbr.cpp
   src/d2k/crt.cpp src/d2k/crt_menu.cpp)
 target_link_libraries(d2k PRIVATE vj_core SDL3::SDL3-static)
 target_compile_definitions(d2k PRIVATE _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
 if(WIN32)
   target_link_libraries(d2k PRIVATE ws2_32 iphlpapi winmm)
+endif()
+# Profile-guided optimisation of the core and d2k (2026-11-22, for the Steam Deck: ~10% less time a frame). The
+# profile res/pgo/d2k.profdata comes from Tools/d2k/pgo.bat (an instrumented build in build-pgo-gen, run on the boot,
+# the menus and the bench states); used when it is there. A stale profile is fine: code that changed since is
+# simply optimised without it. D2K_PGO_GENERATE=ON makes the instrumented build.
+option(D2K_PGO_GENERATE "d2k.exe instrumented to write a profile (Tools/d2k/pgo.bat)" OFF)
+set(D2K_PGO_PROFILE "${CMAKE_SOURCE_DIR}/res/pgo/d2k.profdata")
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  if(D2K_PGO_GENERATE)
+    target_compile_options(vj_core PRIVATE -fprofile-instr-generate)
+    target_compile_options(d2k PRIVATE -fprofile-instr-generate)
+    target_link_options(d2k PRIVATE -fprofile-instr-generate)
+  elseif(EXISTS "${D2K_PGO_PROFILE}")
+    set(pgo_use "-fprofile-instr-use=${D2K_PGO_PROFILE}" -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date
+        -Wno-backend-plugin)
+    target_compile_options(vj_core PRIVATE ${pgo_use})
+    target_compile_options(d2k PRIVATE ${pgo_use})
+    foreach(t vj_core d2k)   # (a new profile rebuilds them)
+      get_target_property(srcs ${t} SOURCES)
+      set_source_files_properties(${srcs} PROPERTIES OBJECT_DEPENDS "${D2K_PGO_PROFILE}")
+    endforeach()
+  endif()
 endif()
 # The high-res art pack (Tools/d2k/d2k_art_pack.py; made from the cartridge's pictures, so kept in Private\, not in
 # git) next to the exe, when it's there.

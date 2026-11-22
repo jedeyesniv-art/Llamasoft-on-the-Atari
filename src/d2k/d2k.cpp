@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #include "host.h"
+#include "perf.h"
 #include "settings.h"
 
 extern "C" {
@@ -102,10 +103,12 @@ uint16_t Raw16(uint32_t a) { return uint16_t(jagMemSpace[a & 0xFFFFFF] << 8 | ja
 uint16_t Clut(int i) { return uint16_t(tomRam8[0x400 + 2 * i] << 8 | tomRam8[0x401 + 2 * i]); }
 
 // Pixel k of a bitmap line (in source order) as a raw word; *zero for pixels TRANS makes see-through.
-uint16_t Pixel(uint32_t line, int k, int bpp, int pitch, int index, bool* zero, int* ci_out = nullptr) {
-  const int ppp = 64 / bpp;
-  const uint32_t phrase = line + uint32_t(k / ppp) * uint32_t(pitch) * 8u;
-  const int bit = (k % ppp) * bpp;   // from the phrase's top
+inline uint16_t Pixel(uint32_t line, int k, int bpp, int pitch, int index, bool* zero, int* ci_out = nullptr) {
+  // (bpp is 1, 2, 4, 8 or 16: shifts, not divisions - this runs for every pixel of every object, every frame)
+  const int lb = bpp == 16 ? 4 : bpp == 8 ? 3 : bpp == 4 ? 2 : bpp == 2 ? 1 : 0, ps = 6 - lb;
+  const int kp = k >= 0 ? k >> ps : k / (64 / bpp), kr = k >= 0 ? k & ((1 << ps) - 1) : k % (64 / bpp);
+  const uint32_t phrase = line + uint32_t(kp) * uint32_t(pitch) * 8u;
+  const int bit = kr << lb;   // from the phrase's top
   if (bpp == 16) {
     uint16_t v = Raw16(phrase + uint32_t(bit / 8));
     *zero = v == 0;
@@ -155,21 +158,25 @@ void OnOp(uint32_t addr, uint64_t p0, int halfline) {
   if (firstpix) ++g_unhandled["firstpix (approx)"];
   // The source pixel of each drawn pixel: one to one, or the scaled OP's stepping (per drawn pixel the remainder
   // gains 1.0 and each HSCALE taken from it steps a source pixel).
+  // (Kept from the call before: an object is met once a line, with the same stepping every time.)
   static std::vector<int> cols;
-  cols.clear();
+  static int cols_hs = -1, cols_skip = -1, cols_w = -1;
   if (type == 1) {
     const int hs = int(p2 & 0xFF);
     if (hs == 0) return;
-    const int out_w = (src_w * hs) >> 5;
-    int k = skip, hr = 0;
-    for (int px = 0; px < out_w && k < src_w; ++px) {
-      cols.push_back(k);
-      hr += 0x20;
-      while (hr >= hs) hr -= hs, ++k;
+    if (hs != cols_hs || skip != cols_skip || src_w != cols_w) {
+      cols_hs = hs, cols_skip = skip, cols_w = src_w;
+      cols.clear();
+      const int out_w = (src_w * hs) >> 5;
+      int k = skip, hr = 0;
+      for (int px = 0; px < out_w && k < src_w; ++px) {
+        cols.push_back(k);
+        hr += 0x20;
+        while (hr >= hs) hr -= hs, ++k;
+      }
     }
-  } else {
-    for (int k = skip; k < src_w; ++k) cols.push_back(k);
   }
+  const int ncols = type == 1 ? int(cols.size()) : std::max(0, src_w - skip);   // (unscaled: column i = skip + i)
   auto it = g_index.find(addr);
   if (it == g_index.end()) {
     Sprite sp;
@@ -177,7 +184,7 @@ void OnOp(uint32_t addr, uint64_t p0, int halfline) {
     sp.type = type;
     sp.x = x;
     sp.row = halfline >> 1;
-    sp.w = int(cols.size());
+    sp.w = ncols;
     sp.depth = depth;
     sp.flags = flags;
     sp.data = data;
@@ -197,14 +204,76 @@ void OnOp(uint32_t addr, uint64_t p0, int halfline) {
   sp.opaque.resize(at + size_t(sp.w), 0);
   const bool want_idx = g_art_dir && bpp <= 8;
   if (want_idx) sp.idx.resize(at + size_t(sp.w), 0);
-  const int n = std::min(sp.w, int(cols.size()));
-  for (int i = 0; i < n; ++i) {
-    bool zero = false;
-    int ci = 0;
-    const uint16_t v = Pixel(data, cols[i], bpp, pitch ? pitch : 1, index, &zero, want_idx ? &ci : nullptr);
-    if (want_idx) sp.idx[at + i] = uint8_t(ci);
-    sp.raw[at + i] = v;
-    sp.opaque[at + i] = !((flags & 4) && zero);
+  const int n = std::min(sp.w, ncols);
+  const bool trans = (flags & 4) != 0;
+  uint16_t* raw = sp.raw.data() + at;
+  uint8_t* opq = sp.opaque.data() + at;
+  const bool flat = type == 0 && !want_idx && (pitch == 1 || pitch == 0) && n > 0 &&
+                    (data & 0xFFFFFF) + uint32_t(skip + n) * uint32_t(bpp / 8) <= 0x1000000u;
+  if (flat && bpp == 16) {
+    // Unscaled 16-bit, phrases back to back, no wrap: one straight run (the full-screen pictures; vectorises).
+    const uint8_t* s = jagMemSpace + (data & 0xFFFFFF) + size_t(skip) * 2;
+    for (int i = 0; i < n; ++i) {
+      const uint16_t v = uint16_t(s[2 * i] << 8 | s[2 * i + 1]);
+      raw[i] = v;
+      opq[i] = uint8_t(!(trans && v == 0));
+    }
+  } else if (flat && bpp == 8) {
+    const uint8_t* s = jagMemSpace + (data & 0xFFFFFF) + size_t(skip);
+    const uint8_t* clut = tomRam8 + 0x400;
+    for (int i = 0; i < n; ++i) {
+      const int ci = s[i];
+      raw[i] = uint16_t(clut[2 * ci] << 8 | clut[2 * ci + 1]);
+      opq[i] = uint8_t(!(trans && ci == 0));
+    }
+  } else if (type == 1 && !want_idx && (pitch == 1 || pitch == 0) && n > 0 && (bpp == 16 || bpp == 8) &&
+             (data & 0xFFFFFF) + uint32_t(cols[size_t(n - 1)] + 1) * uint32_t(bpp / 8) <= 0x1000000u) {
+    // Scaled, phrases back to back: each drawn pixel's source pixel straight from the column table.
+    const uint8_t* s = jagMemSpace + (data & 0xFFFFFF);
+    const uint8_t* clut = tomRam8 + 0x400;
+    const int* c = cols.data();
+    for (int i = 0; i < n; ++i) {
+      if (bpp == 16) {
+        const uint16_t v = uint16_t(s[2 * c[i]] << 8 | s[2 * c[i] + 1]);
+        raw[i] = v;
+        opq[i] = uint8_t(!(trans && v == 0));
+      } else {
+        const int ci = s[c[i]];
+        raw[i] = uint16_t(clut[2 * ci] << 8 | clut[2 * ci + 1]);
+        opq[i] = uint8_t(!(trans && ci == 0));
+      }
+    }
+  } else if (type == 0 && !want_idx && (bpp == 16 || bpp == 8)) {
+    // The common cases (16-bit art, the 8-bit playfield layer), unscaled: phrase by phrase.
+    const uint32_t step = uint32_t(pitch ? pitch : 1) * 8u;
+    const int ps = bpp == 16 ? 2 : 3, pm = (1 << ps) - 1;
+    for (int i = 0; i < n; ++i) {
+      const int k = skip + i;
+      const uint32_t a = data + uint32_t(k >> ps) * step;
+      uint16_t v;
+      bool zero;
+      if (bpp == 16) {
+        const uint32_t b = a + uint32_t(k & pm) * 2u;
+        v = uint16_t(jagMemSpace[b & 0xFFFFFF] << 8 | jagMemSpace[(b + 1) & 0xFFFFFF]);
+        zero = v == 0;
+      } else {
+        const int ci = jagMemSpace[(a + uint32_t(k & pm)) & 0xFFFFFF];
+        v = Clut(ci);
+        zero = ci == 0;
+      }
+      raw[i] = v;
+      opq[i] = !(trans && zero);
+    }
+  } else {
+    for (int i = 0; i < n; ++i) {
+      bool zero = false;
+      int ci = 0;
+      const int k = type == 1 ? cols[size_t(i)] : skip + i;
+      const uint16_t v = Pixel(data, k, bpp, pitch ? pitch : 1, index, &zero, want_idx ? &ci : nullptr);
+      if (want_idx) sp.idx[at + i] = uint8_t(ci);
+      raw[i] = v;
+      opq[i] = !(trans && zero);
+    }
   }
 }
 
@@ -726,17 +795,34 @@ void BurstFit(const std::vector<Item>& cur, const std::vector<Item>& prev, const
   if (pr < 2.f || std::hypot(ccx - pcx, ccy - pcy) > float(max_move)) return;
   // The scale: the one (1.1 .. 3) that puts the most of the update before's particles within 2 pixels of one now
   // (several rings: the mean radius mixes them).
+  // (Which positions hold one of this update's items: a grid over their box, so each test looks at the <= 5 x 5
+  // whole positions near it instead of every item - the same test, the same answer.)
+  int gx0 = 1 << 30, gy0 = 1 << 30, gx1 = -(1 << 30), gy1 = -(1 << 30);
+  for (int i : ci) {
+    gx0 = std::min(gx0, cur[size_t(i)].x); gx1 = std::max(gx1, cur[size_t(i)].x);
+    gy0 = std::min(gy0, cur[size_t(i)].y); gy1 = std::max(gy1, cur[size_t(i)].y);
+  }
+  const int gw = gx1 - gx0 + 1, gh = gy1 - gy0 + 1;
+  static std::vector<uint8_t> grid;
+  grid.assign(size_t(gw) * size_t(gh), 0);
+  for (int i : ci) grid[size_t(cur[size_t(i)].y - gy0) * size_t(gw) + size_t(cur[size_t(i)].x - gx0)] = 1;
+  auto near = [&](float qx, float qy) {   // an item at whole (x, y) with |x - qx| <= 2 and |y - qy| <= 2
+    const int xa = std::max(gx0, int(std::floor(qx)) - 3), xb = std::min(gx1, int(std::floor(qx)) + 3);
+    const int ya = std::max(gy0, int(std::floor(qy)) - 3), yb = std::min(gy1, int(std::floor(qy)) + 3);
+    for (int y = ya; y <= yb; ++y)
+      for (int x = xa; x <= xb; ++x)
+        if (grid[size_t(y - gy0) * size_t(gw) + size_t(x - gx0)] &&
+            std::fabs(float(x) - qx) <= 2.f && std::fabs(float(y) - qy) <= 2.f)
+          return true;
+    return false;
+  };
   float k = 0;
   size_t best = 0;
   for (float kk = 1.1f; kk <= 3.0f; kk += 0.02f) {
     size_t n = 0;
     for (int j : pj) {
       const float qx = ccx + kk * (float(prev[size_t(j)].x) - pcx), qy = ccy + kk * (float(prev[size_t(j)].y) - pcy);
-      for (int i : ci)
-        if (std::fabs(float(cur[size_t(i)].x) - qx) <= 2.f && std::fabs(float(cur[size_t(i)].y) - qy) <= 2.f) {
-          ++n;
-          break;
-        }
+      if (near(qx, qy)) ++n;
     }
     if (n > best) best = n, k = kk;
   }
@@ -769,14 +855,20 @@ void MatchItems(std::vector<Item>& cur, std::vector<Item>& prev) {
     return;
   }
   // The displacements many same-shape pairs share this update (the star layers' scroll, the world's).
-  std::map<std::pair<int, int>, int> hist;
+  // (Counted in a flat (dx, dy) table, read in the order a std::map of (dx, dy) would give: the loops are items
+  // squared.)
+  constexpr int kHw = 2 * kMaxX + 1, kHh = 2 * kMaxY + 1;
+  static std::vector<int> hist;
+  hist.assign(size_t(kHw) * kHh, 0);
   for (const Item& c : cur)
-    for (const Item& p : prev)
-      if (!c.beam && p.shape == c.shape && std::abs(c.x - p.x) <= kMaxX && std::abs(c.y - p.y) <= kMaxY)
-        ++hist[{c.x - p.x, c.y - p.y}];
+    if (!c.beam)
+      for (const Item& p : prev)
+        if (p.shape == c.shape && std::abs(c.x - p.x) <= kMaxX && std::abs(c.y - p.y) <= kMaxY)
+          ++hist[size_t(c.x - p.x + kMaxX) * kHh + size_t(c.y - p.y + kMaxY)];
   std::vector<std::pair<int, std::pair<int, int>>> modes;
-  for (auto& [d, n] : hist)
-    if (n >= 3) modes.push_back({n, d});
+  for (int dx = 0; dx < kHw; ++dx)
+    for (int dy = 0; dy < kHh; ++dy)
+      if (const int n = hist[size_t(dx) * kHh + size_t(dy)]; n >= 3) modes.push_back({n, {dx - kMaxX, dy - kMaxY}});
   std::sort(modes.rbegin(), modes.rend());
   if (modes.size() > 8) modes.resize(8);
   std::vector<std::pair<float, float>> preds = {{0.f, 0.f}};
@@ -793,13 +885,16 @@ void MatchItems(std::vector<Item>& cur, std::vector<Item>& prev) {
   const bool dense = std::count_if(cur.begin(), cur.end(), [](const Item& c) { return !c.beam && c.n <= 2; }) > 150;
   std::vector<std::pair<float, float>> strong;
   if (dense) {
-    std::map<std::pair<int, int>, int> h1;
+    static std::vector<int> h1;
+    h1.assign(size_t(kHw) * kHh, 0);
     for (const Item& c : cur)
       if (!c.beam && c.n == 1)
         for (const Item& p : prev)
-          if (!p.beam && p.n == 1 && std::abs(c.x - p.x) <= kMaxX && std::abs(c.y - p.y) <= kMaxY) ++h1[{c.x - p.x, c.y - p.y}];
-    for (auto& [d, n] : h1)
-      if (n >= 20) strong.push_back({float(d.first), float(d.second)});
+          if (!p.beam && p.n == 1 && std::abs(c.x - p.x) <= kMaxX && std::abs(c.y - p.y) <= kMaxY)
+            ++h1[size_t(c.x - p.x + kMaxX) * kHh + size_t(c.y - p.y + kMaxY)];
+    for (int dx = 0; dx < kHw; ++dx)
+      for (int dy = 0; dy < kHh; ++dy)
+        if (h1[size_t(dx) * kHh + size_t(dy)] >= 20) strong.push_back({float(dx - kMaxX), float(dy - kMaxY)});
   }
   std::vector<Pair> pairs;
   std::vector<bool> taken(prev.size(), false), done(cur.size(), false);
@@ -2244,7 +2339,14 @@ void BuildAtlas(SDL_Renderer* ren) {
                                        : filter == "nearest" ? SDL_SCALEMODE_NEAREST : SDL_SCALEMODE_PIXELART);
     g_gpu.filter = filter;
   }
-  std::fill(g_gpu.px.begin(), g_gpu.px.end(), 0u);
+  // Only the rows this frame's rectangles use (with their padding) are cleared and uploaded: the shelves fill from
+  // the top, and the atlas never shrinks - after one busy moment (2000's level end) it stays 2048 or 4096 square,
+  // and clearing / uploading all of it every frame cost more than everything else drawn. Rows below hold old
+  // pictures nothing samples.
+  int used = 0;
+  for (size_t i = 0; i < rects.size(); ++i) used = std::max(used, rects[i].y + sizes[i].second + kPad);
+  used = std::min(size, std::max(used, 1));
+  std::fill(g_gpu.px.begin(), g_gpu.px.begin() + ptrdiff_t(size_t(used) * size_t(size)), 0u);
   const size_t n = g_cur.sprites.size();
   g_gpu.at.assign(rects.begin(), rects.begin() + long(n));
   for (size_t i = 0; i < n; ++i) {
@@ -2329,7 +2431,10 @@ void BuildAtlas(SDL_Renderer* ren) {
   for (size_t k = 0; k < g_items.size(); ++k) pad(g_gpu.item_at[k], g_items[k].w, g_items[k].h);
   for (size_t k = 0; k < g_dead.size(); ++k) pad(g_gpu.dead_at[k], g_prev_items[g_dead[k]].w, g_prev_items[g_dead[k]].h);
   for (size_t k = 0; k < g_edge.size(); ++k) pad(g_gpu.edge_at[k], g_edge[k].w, g_edge[k].h);
-  SDL_UpdateTexture(g_gpu.tex, nullptr, g_gpu.px.data(), size * 4);
+  perf::Count("atlas size", size);   // (T2K_PERF: per shown frame, summed over the frames emulated for it)
+  perf::Count("atlas rows sent", used);
+  const SDL_Rect up{0, 0, size, used};
+  SDL_UpdateTexture(g_gpu.tex, &up, g_gpu.px.data(), size * 4);
   g_gpu.built_frame = g_frames;
   // High-res art: which sprites (and ghosts) have a replacement this frame.
   g_gpu.hi.assign(n, {});
