@@ -10,6 +10,10 @@ Jeff Minter's Atari ST games running natively on Windows with modern pad control
   Defender 2 (Arcadia 1990: Defender, Defender II and Stargate)
   Hardcore (1991), Yak's unfinished 5-level evaluation demo
   Photon Storm (Arc 1990)
+And one that isn't an ST game: Defender 2000 (Atari Jaguar, 1996), Llamasoft's remake of Defender, run by
+  d2k.exe next to the program with its own renderer (smooth motion, wide screen, high-res art). It needs the
+  cartridge image: put "Defender 2000 (1996).jag" (any .jag with "Defender" in its name) in the "game" folder
+  and it appears on the start screen. Back opens its own settings; "Return to launcher" comes back.
 The original game code runs unchanged inside a small Atari ST built into this program, plus a few optional
 improvements listed below.
 

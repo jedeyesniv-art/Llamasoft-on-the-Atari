@@ -9,6 +9,9 @@
 # The games (owner 2026-11-01: Llamasoft only - the compilation disks' other games don't ship):
 #   Llamatron ST.msa (Llamatron + Super Gridrunner), Trip-A-Tron\ (TRIP_A_T.RON's files), the Revenge 1 MB STE
 #   .stx, and Andes Attack / Defender 2 / Hardcore .st built by Tools\make_release_disks.py from the downloads.
+# Defender 2000 (Atari Jaguar, from 2026-11-22): d2k.exe next to llamatron.exe (GPL-3: the Virtual Jaguar core) and
+#   its licence. The portable folder also gets the cartridge (game\) and the high-res art pack (d2k_art\, made from
+#   it); the release zip doesn't (not decided by the owner yet: a commercial cartridge).
 #
 # Usage: powershell -ExecutionPolicy Bypass -File Tools\package_portable.ps1 [-SkipBuild] [-Release] [-Folder <name>]
 # (-Folder: another folder under dist\ for the portable build, e.g. a test build next to the release one.)
@@ -36,6 +39,17 @@ if (-not $SkipBuild) {
 
 $exe = Join-Path $repo "build\llamatron.exe"
 if (-not (Test-Path $exe)) { throw "$exe not found - build first" }
+$d2k = Join-Path $repo "build\d2k.exe"
+if (-not (Test-Path $d2k)) { throw "$d2k not found - build first" }
+$d2kCart = Join-Path $repo "Private\d2k\Defender 2000 (1996).jag"
+$d2kArt = Join-Path $repo "Private\d2k\d2k_art"
+
+# The licences: ours (third-party notices) and the Virtual Jaguar core's GPL-3 (d2k.exe).
+function Copy-Licenses([string]$to) {
+    New-Item -ItemType Directory -Force $to | Out-Null
+    Copy-Item (Join-Path $repo "licenses\THIRD-PARTY-NOTICES.txt") $to
+    Copy-Item (Join-Path $repo "third_party\virtualjaguar\LICENSE") (Join-Path $to "VIRTUAL-JAGUAR-GPL-3.txt")
+}
 $version = (Select-String -Path (Join-Path $repo "CMakeLists.txt") -Pattern 'project\(Llamatron VERSION ([0-9.]+)').Matches[0].Groups[1].Value
 
 # The game folder's contents, assembled once.
@@ -99,14 +113,17 @@ function Copy-Extras([string]$to) {
 # Fresh folder, but keep userdata\ if it's already there (the owner's scores and settings).
 New-Item -ItemType Directory -Force $dist | Out-Null
 Get-ChildItem $dist | Where-Object { $_.Name -ne "userdata" } | Remove-Item -Recurse -Force
-Copy-Item $exe $dist
+Copy-Item $exe, $d2k $dist
 Copy-Item (Join-Path $repo "res\README.txt") $dist
-New-Item -ItemType Directory -Force (Join-Path $dist "licenses") | Out-Null
-Copy-Item (Join-Path $repo "licenses\THIRD-PARTY-NOTICES.txt") (Join-Path $dist "licenses")
+Copy-Licenses (Join-Path $dist "licenses")
 Copy-Games (Join-Path $dist "game")
+# Defender 2000's cartridge and art pack: the portable folder only (the owner's play folder).
+if (Test-Path -LiteralPath $d2kCart) { Copy-Item -LiteralPath $d2kCart (Join-Path $dist "game") }
+else { Write-Host "note: $d2kCart not found - Defender 2000 won't be on the disks" }
+if (Test-Path (Join-Path $d2kArt "pack.txt")) { Copy-Item -Recurse $d2kArt (Join-Path $dist "d2k_art") }
 Copy-Extras (Join-Path $dist "Extras")
 New-Item -ItemType Directory -Force $symbols | Out-Null
-Copy-Item (Join-Path $repo "build\llamatron.pdb") $symbols
+Copy-Item (Join-Path $repo "build\llamatron.pdb"), (Join-Path $repo "build\d2k.pdb") $symbols
 Write-Host "portable folder: $dist (version $version)"
 
 if ($Release) {
@@ -115,8 +132,8 @@ if ($Release) {
     $stage = Join-Path $out "stage\Llamasoft on the ST"
     if (Test-Path (Split-Path $stage)) { Remove-Item -Recurse -Force (Split-Path $stage) }
     New-Item -ItemType Directory -Force $stage | Out-Null
-    Copy-Item $exe, (Join-Path $repo "res\README.txt") $stage
-    Copy-Item -Recurse (Join-Path $dist "licenses") $stage
+    Copy-Item $exe, $d2k, (Join-Path $repo "res\README.txt") $stage
+    Copy-Licenses (Join-Path $stage "licenses")
     Copy-Games (Join-Path $stage "game")
     Copy-Extras (Join-Path $stage "Extras")
     # Leak check: disk images only (plus Trip-A-Tron's own folder, which is how it ships); no unpacked game
@@ -127,7 +144,7 @@ if ($Release) {
     if ($bad) { throw "release would contain: $($bad.FullName -join ', ')" }
     $zip = Join-Path $out "LlamasoftOnTheST-$version-windows.zip"
     Compress-Archive -Path $stage -DestinationPath $zip -Force
-    Compress-Archive -Path (Join-Path $symbols "llamatron.pdb") -DestinationPath (Join-Path $out "LlamasoftOnTheST-$version-symbols.zip") -Force
+    Compress-Archive -Path (Join-Path $symbols "llamatron.pdb"), (Join-Path $symbols "d2k.pdb") -DestinationPath (Join-Path $out "LlamasoftOnTheST-$version-symbols.zip") -Force
     Remove-Item -Recurse -Force (Split-Path $stage)
     Write-Host "release: $zip"
 }

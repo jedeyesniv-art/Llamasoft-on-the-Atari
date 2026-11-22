@@ -48,6 +48,9 @@ struct Game {
   int docs_screen = 0;
   bool user = false;    // a disk the player added (not one we know); its "program" option picks what runs
   bool settings = false;  // the Settings disk: opens the settings panel, nothing runs
+  // Not an ST game: another program next to ours runs it as its own process (d2k.exe: Defender 2000 on the Atari
+  // Jaguar, owner 2026-11-22), given `source` (its cartridge image), our volume and its save folder.
+  std::string external;
   // Choices on the how-to-play page (trainers, a user disk's program), saved as settings <id>_<key>.
   struct Option {
     std::string key, label;

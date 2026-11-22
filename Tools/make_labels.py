@@ -25,6 +25,7 @@ LABELS = [
     ('photonstorm', 'photonstorm-photo.jpg', (0, 0, 1, 1), None),
     ('rmctt', 'rmctt-photo.jpg', (0, 0, 1, 1), None),
     ('llamazap', 'llamazap-photo.jpg', (0, 0, 1, 1), None),  # the Falcon game (2026-11-19)
+    ('defender2000', 'defender2000-photo.jpg', (0, 0, 1, 1), None),  # the Jaguar game, d2k.exe (2026-11-22)
     ('settings', 'settings-photo.jpg', (0, 0, 1, 1), None),  # the launcher's Settings disk (2026-11-03)
 ]
 # The Ink Free stand-in (owner 2026-11-01: "replace my handwritten labels so all the disks are consistent"), now
@@ -32,7 +33,7 @@ LABELS = [
 STAND_IN = {'llamatron': ['Llamatron'], 'gridrunner': ['Super', 'Gridrunner'], 'tripatron': ['Trip-A-Tron'],
             'rmc': ['Mutant', 'Camels'], 'defender2': ['Defender 2'], 'andes': ['Andes', 'Attack'],
             'hardcore': ['Hardcore'], 'photonstorm': ['Photon', 'Storm'], 'rmctt': ['Camels', 'TT Megamix'],
-            'llamazap': ['Llamazap'], 'settings': ['Settings']}
+            'llamazap': ['Llamazap'], 'defender2000': ['Defender', '2000'], 'settings': ['Settings']}
 # The owner's redrawn labels (2026-11-07, drawn digitally: res/labels/sheet-N.png, all on one template of 2 x 2
 # label cells between two narrow strips): which sheet, column, row. These come first; the stand-ins are left for
 # a disk with no cell here.
@@ -58,6 +59,9 @@ SCANS = {'llamazap': ('llamazap_d7_3.jpg', (68, 2, 380, 274)),
 # Llamatron's from its ST Format cover disk - the side strip kept, the wordmark scaled up, the rest gone.
 PICTURES = {'hardcore': 'hardcore.png', 'rmctt': 'revenge_of_the_mutant_camels_tt_[llamasoft].png'}
 COMPOSED = {'llamatron': 'llamatron_st_format_d7.jpg'}
+# Cartridges (owner 2026-11-22, art/): a photo of the real cart, its label's box (left, top, right, bottom pixels)
+# and the cart's plastic colour - the label (about 2:1) fitted whole onto that colour.
+CARTS = {'defender2000': ('1397067-item-big-AJAG-DEFENDER-A-1.jpg', (64, 144, 540, 366), (46, 46, 50))}
 # The signature at the bottom right ("by Yak"); none on our own Settings disk.
 BYLINE = {'settings': ''}
 
@@ -131,6 +135,22 @@ def from_picture(name):
     k = min(w / im.width, h / im.height)
     im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
     out = Image.new('RGB', (w, h), im.getpixel((1, 1)))  # (its border's colour: Hardcore's is a dark red)
+    out.paste(im, ((w - im.width) // 2, (h - im.height) // 2))
+    return out
+
+
+def from_cart(name):
+    """A cartridge's label from a photo of the cart (CARTS), fitted whole onto the cart's colour. None if absent."""
+    photo, box, colour = CARTS[name]
+    path = os.path.join(ROOT, 'art', photo)
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert('RGB').crop(box)
+    w, h = W * 3 // 4, H * 3 // 4
+    m = w // 20  # (a margin of the cart round it)
+    k = min((w - 2 * m) / im.width, (h - 2 * m) / im.height)
+    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    out = Image.new('RGB', (w, h), colour)
     out.paste(im, ((w - im.width) // 2, (h - im.height) // 2))
     return out
 
@@ -249,6 +269,8 @@ def main():
         img = from_scan(name) if name in SCANS else None
         if img is None and name in PICTURES:
             img = from_picture(name)
+        if img is None and name in CARTS:
+            img = from_cart(name)
         if img is None and name in COMPOSED:
             img = from_cover_disk(name)
         if img is not None:

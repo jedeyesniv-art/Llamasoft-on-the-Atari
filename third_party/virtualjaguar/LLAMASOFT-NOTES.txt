@@ -1,0 +1,6 @@
+Virtual Jaguar (libretro/virtualjaguar-libretro, GPL-3, see LICENSE), vendored for Defender 2000 (src/d2k).
+Source: our local branch llamasoft-jaguar, commit eb83a9de (from libretro master 34696082, v3.11.0) - 9 patches:
+host port $DFFE00-$DFFEFF, line-A host traps, OP skip ranges, survey hooks (GPU go / blit / OP object read),
+GPU load / store hooks, a GPU/DSP late write-back fix, vjEepromFromSaveBuf.
+Trimmed to what the build needs: the website, docs, tests, CI files and the core's own app (app/ keeps cmake/
+only) were left out.

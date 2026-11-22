@@ -301,6 +301,39 @@ std::vector<Known> KnownGames() {
   return k;
 }
 
+// Defender 2000 (Atari Jaguar, 1996): run by d2k.exe next to ours, from a cartridge image (.jag / .j64) with
+// "Defender" in its name. Only offered when d2k.exe is there.
+bool IsDefender2000(const fs::path& p) {
+  std::string ext = Upper(p.extension().string()), name = Upper(p.filename().string());
+  return (ext == ".JAG" || ext == ".J64") && name.find("DEFENDER") != std::string::npos;
+}
+
+Game Defender2000(const fs::path& cart) {
+  Game g;
+  g.id = "defender2000", g.name = "DEFENDER 2000", g.year = 1996;
+  g.external = "d2k.exe";
+  g.source = cart;
+  g.body = {0.17f, 0.17f, 0.19f, 1}, g.band = {0.86f, 0.10f, 0.08f, 1};  // the cart's grey, the Jaguar logo's red
+  g.help = {"DEFENDER 2000  -  JEFF MINTER, ATARI JAGUAR 1996",
+            "",
+            "Not an ST game: Llamasoft's Jaguar remake of Defender,",
+            "in three games - Classic, Plus and Defender 2000 -",
+            "with our own renderer: smooth motion, wide screen,",
+            "high-res art. It runs as its own program (d2k.exe).",
+            "",
+            "{A}                    fire",
+            "{RT}                   thrust      {LB} / {LT}  reverse",
+            "{B} / {RB}               smart bomb",
+            "{X}                    lightning laser (Plus)",
+            "{Y}                    option      {START}  pause",
+            "{BACK}                 its settings (controls, picture,",
+            "                     save states, back to the disks)",
+            "",
+            "In its menus: {A} select, {B} back. Keyboard: arrows,",
+            "Z fire, Space thrust, Shift reverse, C bomb, Esc menu."};
+  return g;
+}
+
 bool IsImage(const fs::path& p) {
   std::string ext = Upper(p.extension().string());
   return ext == ".MSA" || ext == ".ST" || ext == ".STX";
@@ -406,8 +439,19 @@ std::vector<Game> Discover(const std::string& disk) {
   if (!disk.empty()) files.push_back(disk);  // --disk: first
   for (const fs::path& root : SearchRoots()) Walk(root, &files);
 
+  std::error_code d2k_ec;
+  const bool d2k_exe = fs::exists(ExeDir() / "d2k.exe", d2k_ec);
+  bool have_d2k = false;
   for (const fs::path& f : files) {
     std::error_code ec;
+    if (d2k_exe && !have_d2k && IsDefender2000(f)) {
+      have_d2k = true;
+      Game g = Defender2000(f);
+      LOG("%s (%s): %s", g.name.c_str(), g.external.c_str(), f.string().c_str());
+      known.push_back({std::move(g), "", false});
+      found.push_back(true);
+      continue;
+    }
     std::string upper = Upper(f.filename().string());
     // A folder game: its identifying file.
     for (size_t i = 0; i < known.size(); ++i)

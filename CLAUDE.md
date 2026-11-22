@@ -41,6 +41,14 @@ elease\Llamatron-<ver>-windows.zip (no game
 - NEXT MAJOR STEP (owner 2026-11-01, after bug fixes from the owner's testing): PLAN-NEXT-LEVEL.md - run-ahead
   (lower input lag, all games), then a native remaster renderer with Photon Storm as the pilot.
 
+## Defender 2000 (Atari Jaguar; moved in from C:\Tempest2k 2026-11-22, branch d2k) - read D2K.md first
+- Owner: "this project would then be the home for D2K". Not an ST game: build\d2k.exe (src/d2k, the vendored Virtual
+  Jaguar core in third_party/virtualjaguar: GPL-3, so d2k.exe is GPL-3; llamatron.exe stays MIT-0), started by the
+  launcher as its own process (src/external.cpp, main.cpp RunExternal) from a cartridge on the carousel (games.cpp
+  Defender2000: a .jag with "Defender" in its name, when d2k.exe is there; label from art/ via make_labels.py CARTS).
+  Cartridge + art pack in Private\d2k (not in git); saves userdata\defender2000. Removed from Tempest2k the same day.
+  The release zip has d2k.exe but not the cartridge / art pack (owner to decide).
+
 ## Llamazap: the Atari Falcon030 (2026-11-19, branch falcon; owner: "pretty flawless")
 - Llamazap (Llamasoft 1993, Falcon030; "(c) 1993 Atari Corp." on its title): Private\new\llamazap\Llamazap.st (from
   Private\llamazap_[falcon030]_atari_(uk).zip: a 1.44 MB PC-formatted disk, LLAMAZAP.PRG (Pack-Ice) + STUFF\: 7 MODs,

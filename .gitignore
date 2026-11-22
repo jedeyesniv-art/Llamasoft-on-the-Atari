@@ -6,3 +6,4 @@
 /logs/
 __pycache__/
 /res/labels/*-photo.jpg
+/third_party/realesrgan/

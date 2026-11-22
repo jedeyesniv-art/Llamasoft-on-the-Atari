@@ -39,6 +39,7 @@
 #include "rumble.h"
 #include "savestate.h"
 #include "steam.h"
+#include "external.h"
 #include "log.h"
 #include "machine.h"
 
@@ -1286,8 +1287,31 @@ bool Install(Context& c, const games::Game& g, const std::map<std::string, disk:
   return false;
 }
 
+// A game that isn't an ST game (Defender 2000: d2k.exe next to ours): its own program, given the cartridge, its save
+// folder (userdata\<id>), our master volume and loudness levelling and fullscreen; we wait underneath (external.cpp).
+GameEnd RunExternal(Context& c, const games::Game& g) {
+  const fs::path exe = games::ExeDir() / g.external;
+  const double v = std::clamp(settings::Get("volume", 1.0), 0.0, 1.0);
+  const bool fullscreen = c.window && (SDL_GetWindowFlags(c.window) & SDL_WINDOW_FULLSCREEN);
+  std::vector<std::string> args = {fs::absolute(g.source).string(), "--from-launcher",
+                                   "--userdata=" + fs::absolute(games::SaveDir(g, c.save_dir)).string(),
+                                   "--master=" + std::to_string(v * v),
+                                   "--even=" + std::to_string(settings::Get("volume_normalise", 1) != 0 ? 1 : 0),
+                                   "--fullscreen=" + std::to_string(fullscreen ? 1 : 0)};
+  if (c.audio) SDL_ClearAudioStream(c.audio);
+  std::string error;
+  int code = 0;
+  if (!external::Run(c.window, exe, args, &error, &code)) {
+    LOG("%s", error.c_str());
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, g.name.c_str(), error.c_str(), c.window);
+    return GameEnd::kError;
+  }
+  return GameEnd::kToLauncher;
+}
+
 // A game from the launcher's list: its disk (or folder), its save folder, installed there first if it needs it.
 GameEnd RunEntry(Context& c, const games::Game& g, bool direct, bool docs = false) {
+  if (!g.external.empty()) return RunExternal(c, g);
   auto fail = [&](const std::string& msg) {
     LOG("%s", msg.c_str());
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, g.name.c_str(), msg.c_str(), c.window);
@@ -1506,7 +1530,7 @@ void RunProgram(Context& c) {
   std::vector<fs::path> sources;
   if (!opt.disk.empty()) sources.push_back(opt.disk);
   for (const games::Game& g : c.games)
-    if (!g.settings) sources.push_back(g.source);
+    if (!g.settings && g.external.empty()) sources.push_back(g.source);
   for (const fs::path& src : sources) {
     std::string error;
     std::map<std::string, disk::Bytes> files = games::ReadSource(src, &error);

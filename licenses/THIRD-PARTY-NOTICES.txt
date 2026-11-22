@@ -8,6 +8,9 @@ This program contains code from the following projects. Their licences follow.
 3. SoftFloat Release 2b by John R. Hauser (part of Musashi) - licence notice below
 4. The YM2149 volume table from ayumi by Peter Sovietov - https://github.com/true-grue/ayumi - MIT licence
 5. miniaudio 0.11.21 by David Reid - https://github.com/mackron/miniaudio - public domain or MIT-0 (below)
+6. Virtual Jaguar (libretro/virtualjaguar-libretro, with our changes) - GPL version 3, in d2k.exe only
+   (Defender 2000). Its licence is VIRTUAL-JAGUAR-GPL-3.txt next to this file; d2k.exe as a whole is GPL-3,
+   and its source (with the core) is in the project's repository: src/d2k, third_party/virtualjaguar.
 
 Llamatron itself is (c) 1991 Jeff Minter / Llamasoft. The game is not included in this program; it runs the
 player's own copy of the game disk.

@@ -82,6 +82,7 @@ add_executable(llamatron WIN32
   src/settings.cpp
   src/settings_menu.cpp
   src/steam.cpp
+  src/external.cpp
   src/preview.cpp
   src/rumble.cpp
   src/glyphs.cpp
@@ -94,4 +95,35 @@ set_source_files_properties(src/miniaudio_impl.cpp PROPERTIES COMPILE_OPTIONS "-
 target_compile_definitions(llamatron PRIVATE _CRT_SECURE_NO_WARNINGS)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(llamatron PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
+
+# Defender 2000 (Atari Jaguar; moved here from the Tempest collection 2026-11-22): d2k.exe, its own program on the
+# Virtual Jaguar core (GPL-3, vendored in third_party/virtualjaguar with our patches - so d2k.exe is GPL-3; the ST
+# launcher starts it as a separate process). Notes: D2K.md.
+set(VJ_LTO_ENABLED OFF)
+function(vj_optimise target)
+endfunction()
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/third_party/virtualjaguar/app/cmake")
+include(VJCore)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  target_compile_options(vj_core PRIVATE -w)
+  target_compile_options(vj_libchdr PRIVATE -w)
+endif()
+configure_file(res/d2k.rc.in ${CMAKE_BINARY_DIR}/d2k.rc @ONLY)
+add_executable(d2k WIN32
+  ${CMAKE_BINARY_DIR}/d2k.rc
+  src/d2k/main.cpp src/d2k/host.cpp src/d2k/settings.cpp src/d2k/volume.cpp src/d2k/runlog.cpp src/d2k/menu.cpp
+  src/d2k/pixfont.cpp src/d2k/d2k_menu.cpp src/d2k/controls.cpp src/d2k/traps.cpp src/d2k/gpulog.cpp
+  src/d2k/jagsurvey.cpp src/d2k/d2k.cpp src/d2k/d2k_bonus.cpp src/d2k/d2k_stars.cpp src/d2k/perf.cpp src/d2k/xbr.cpp
+  src/d2k/crt.cpp src/d2k/crt_menu.cpp)
+target_link_libraries(d2k PRIVATE vj_core SDL3::SDL3-static)
+target_compile_definitions(d2k PRIVATE _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES)
+if(WIN32)
+  target_link_libraries(d2k PRIVATE ws2_32 iphlpapi winmm)
+endif()
+# The high-res art pack (Tools/d2k/d2k_art_pack.py; made from the cartridge's pictures, so kept in Private\, not in
+# git) next to the exe, when it's there.
+if(EXISTS "${CMAKE_SOURCE_DIR}/Private/d2k/d2k_art/pack.txt")
+  add_custom_command(TARGET d2k POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/Private/d2k/d2k_art" $<TARGET_FILE_DIR:d2k>/d2k_art)
 endif()
