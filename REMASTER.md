@@ -20,7 +20,7 @@ pilot was built, what went wrong on the way, and a recipe for the next games. Ke
 - Also done 2026-11-03: Llamatron's analog shots at their exact positions; the CRT's halation redone (crt.cpp /
   glow.frag.hlsl: a smooth glow from blurred linear-light levels, the owner's tuning = CRT defaults version 4); a
   "slow present" log line (any frame over 40 ms, with where the time went); `package_portable.ps1 -Folder <name>`.
-  Test build for the owner's Steam Deck: `dist\LlamasoftOnTheSTRemaster` (remaster + run-ahead 2 on for all).
+  Test build for the owner's Steam Deck: `dist\LlamasoftOnTheAtari` (remaster + run-ahead 2 on for all).
 - **No push until the owner says so** ("much later": their iOS ports come first).
 
 ### Polish to-do (owner 2026-11-03: "save our further plans for later"), roughly by impact
