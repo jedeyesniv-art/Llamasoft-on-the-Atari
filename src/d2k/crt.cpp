@@ -1,4 +1,4 @@
-// crt.cpp - from Llamasoft on the ST (C:\LlamatronRecomp src/crt.cpp): the per-game looks and docs mode left out,
+// crt.cpp - from Llamasoft on the Atari (C:\LlamatronRecomp src/crt.cpp): the per-game looks and docs mode left out,
 // the settings read with this project's settings::Num.
 #include "crt.h"
 

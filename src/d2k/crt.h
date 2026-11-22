@@ -1,4 +1,4 @@
-// crt.h - the CRT+ / CRT++ looks from Llamasoft on the ST (C:\LlamatronRecomp src/crt.cpp, the owner's tuning):
+// crt.h - the CRT+ / CRT++ looks from Llamasoft on the Atari (C:\LlamatronRecomp src/crt.cpp, the owner's tuning):
 // pixel shaders on SDL's GPU renderer (src/shaders/*.frag.hlsl, DXIL -> D3D12; Tools: tools/build_shaders.py).
 // Setting crt = 0 off / 1 CRT+ / 2 CRT++ and the crt_* / crt_psy_* numbers, read live (the Back menu's CRT section).
 // Without the GPU renderer the picture is drawn plain.

@@ -1,94 +1,58 @@
-# Release notes for 2.0.0 (published 2026-11-08 as v2.0.0)
+# Release notes for 3.0.0
 
-Paste the text below the line into the GitHub release. Before then, set `VERSION 2.0.0` in `CMakeLists.txt` and
-build the zip with `Tools\package_portable.ps1 -Release`.
+Paste the text below the line into the GitHub release, titled "Llamasoft on the Atari 3.0". Before then, set
+`VERSION 3.0.0` in `CMakeLists.txt` and build the zip with `Tools\package_portable.ps1 -Release`. (2.0.0's notes
+are in this file's history, commit 301857c.)
 
 ---
 
-## Llamasoft on the ST 2.0 - Remaster
+## Llamasoft on the Atari 3.0
 
-**The same games, byte for byte, made to look and feel the way you remember them, only better.**
+**Llamasoft on the ST is now Llamasoft on the Atari: a Falcon game and a Jaguar cartridge have moved in.**
 
-Every game is still the original 68000 program running in a small Atari ST. What's new is everything layered
-on top of it.
+Every game is still the original program running in a small emulated machine, with the remaster layered on
+top. 3.0 brings the collection to ten games.
 
-### CRT+ and CRT++
-**CRT+** is an accurate, beautiful CRT built for these games:
-- a soft beam, with scanlines that swell on bright colours
-- an aperture-grille phosphor mask
-- real halation glow, computed in linear light
-- true blacks
+### New: Llamazap (Atari Falcon030, 1993)
+Minter's Falcon shooter: 25 stages over five levels, each stage a different style of shoot-'em-up. It was
+written for a Falcon with an Atari Jaguar pad plugged in, and its power-ups are bought on that pad's number
+keypad, which is what has always made it awkward to play. Here it's complete on any pad:
+- **An emulated Falcon030** for it: 68030, 256-colour VIDEL modes, blitter, and the Jaguar pad. Our own mixer
+  stands in for its DSP sound program, playing the MOD music and effects **in stereo**.
+- **Power-ups from a menu:** hold **LB** and the game stops while every power-up on offer is shown with the
+  game's own icons, names and costs. Pick with the right stick, let go to buy.
+- **Twin-stick aiming** on its Llamatron stages.
+- **50 frames a second on every screen** (the original drew 25), with the **remaster and run-ahead**.
+- **START AT STAGE**: jump to any of the 25 stages.
+- **Its manual**, typed in from the original's pages. The manual-word protection check is answered for you.
+- Rumble, remapping, savestates and its own tuned CRT++ look. **STOCK FALCON** puts it back exactly as it was.
 
-The picture keeps its true size and its UK TV shape.
+### New: Defender 2000 (Atari Jaguar, 1996)
+Llamasoft's Jaguar remake of Defender: Classic, Plus and Defender 2000 itself. On the carousel it's a Jaguar
+cartridge, and it runs on a Virtual Jaguar core with our own native renderer:
+- **Smooth motion** at your display's rate (the game updates 30 times a second)
+- **Wide screen:** the world carries on past the 4:3 edges
+- **High-resolution art:** the cartridge's pictures, upscaled four times
+- CRT+ / CRT++, savestates, arcade thrust and reverse buttons, and its own settings menu on Back
 
-**CRT++** is a Llamasoft-inspired facelift. Minter-style feedback trails zoom, swirl and colour-cycle behind
-the action, with composite colour bleed and a boosted glow. Each game ships with its own tuned look, and every
-setting can be tweaked live.
-
-Both looks also come as presets for **ShaderGlass and RetroArch** (`Extras\CRT shaders`, MIT), for everything
-else you play.
-
-### An interpolated, unlocked frame rate
-Every game now draws all 50 of its frames a second (the ST managed 13-25), at exactly its original speed. On
-top of that, moving things are drawn at **4x the ST's resolution** and **interpolated at your monitor's full
-refresh rate**: 60, 120, 144, 240 Hz or more. The only limit is your display.
-
-It covers title screens, attract demos, scrollers, bonus stages, warps and high score entry too. Photon Storm's
-ship turns at its exact angle instead of the ST's 16 steps.
-
-The game underneath is untouched: its memory with the remaster on matches a run without it, and its picture at
-the ST's own resolution matches pixel for pixel.
-
-### Pad controls, tuned by hand for every game
-Every game has controls designed for it, play-tested on a real pad and the Steam Deck, and tuned until it felt
-right. None of them is a generic joystick mapping.
-- **Llamatron and Photon Storm:** true twin-stick shooters.
-- **Andes Attack and Defender 2:** arcade Defender controls, with analog thrust on the trigger. Andes
-  Attack's thrust builds frame for frame like the original's mouse.
-- **Super Gridrunner:** the mouse game steered with the stick, with a light inertia.
-- **Mutant Camels:** they spit wherever the right stick points.
-- **Menus and high score names:** all on the pad.
-- **Remapping:** every button, per game.
-- **Button names:** in Xbox, PlayStation or Switch terms.
-- **Rumble:** driven by the game itself: lives lost, smart bombs, kills.
-
-### Trip-A-Tron, fully working, with a music-reactive module
-Minter's light synthesiser runs complete:
-- its tool screens, with their labels
-- its KML effect programs
-- its whole manual (text and PDF)
-
-On a pad it's an instrument:
-- pressure-sensitive painting on the trigger
-- effect and symmetry wheels, every key labelled from the loaded program
-- a starfield you fly with the right stick
-- gyro aiming
-
-Our **music module** listens to whatever your PC is playing and performs along with it. The light dances to
-the bass, beats paint, and the palette, effects and symmetry move with the music. Your own input always wins.
-
-### Quicker than the real ST
-**Run-ahead** (on by default) runs a copy of the game a frame or two ahead with your controls. Measured on
-Photon Storm, the picture now answers the pad about 40 ms sooner than the original did on its own hardware.
-
-### And more
-- **Start screen:** the game you're pointing at plays live behind the carousel.
-- **Settings panel:** reachable from any game, with the game paused behind it.
-- **Docs:** each game's notes and manuals are one button away.
-- **Volume:** every game is evened out to the same loudness, with a master volume.
-- **Steam:** **Add to Steam** puts it in your library with its own art. It plays on the Steam Deck.
-- **Fix:** Photon Storm no longer crashes in the warp after a won bonus. That's a bug in the original, which
-  divides by zero about one warp in ten.
+### For every game
+- **Savestates:** four slots per game, kept on disk, from Settings (SAVE STATES) or F2 / F4.
+- **Real labels:** the disks wear scans of their real labels where they exist, and hand-drawn art where they
+  don't.
+- **A tidier settings panel:** savestates and the game's own settings come first. **B now only closes the
+  panel**, so an accidental press won't drop you out of a game; X leaves to the disks.
 
 ### Respecting the originals
-Nothing about how the games play has changed: enemies, waves, scoring, difficulty, sound and music are all
-the originals'. Every deliberate change can be switched back, and the README lists each one with its switch.
-Press **F8** at any time to see the ST's own picture.
+As before: enemies, waves, scoring, difficulty, sound and music are all the originals'. Every deliberate
+change can be switched back, and the README lists each one with its switch. **STOCK ST** (or **STOCK
+FALCON**) in a game's settings turns every speed-up off at once.
 
-**Download `LlamasoftOnTheST-2.0.0-windows.zip`, unpack it anywhere and run `llamatron.exe`.** All the games
-are included; `README.txt` has every game's controls.
+**Download `LlamasoftOnTheAtari-3.0.0-windows.zip`, unpack it anywhere and run `llamatron.exe`.** All the
+games are included; `README.txt` has every game's controls.
 
 The collection: Llamatron: 2112 and Super Gridrunner, Trip-A-Tron, Revenge of the Mutant Camels (1 MB STE and
-the TT Megamix), Andes Attack, Defender 2, Photon Storm and Hardcore.
+the TT Megamix), Andes Attack, Defender 2, Photon Storm, Hardcore, Llamazap and Defender 2000.
 
-`LlamasoftOnTheST-2.0.0-symbols.zip` is the debug PDB (only for crash reports).
+`d2k.exe` (Defender 2000) includes the Virtual Jaguar core and is GPL-3; its source is in this repository.
+
+`LlamasoftOnTheAtari-3.0.0-symbols.zip` has the debug PDBs (only for crash reports).

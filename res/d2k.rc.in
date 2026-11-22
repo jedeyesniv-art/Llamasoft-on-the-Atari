@@ -13,9 +13,9 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "FileDescription", "Defender 2000 (Atari Jaguar) - part of Llamasoft on the ST"
+      VALUE "FileDescription", "Defender 2000 (Atari Jaguar) - part of Llamasoft on the Atari"
       VALUE "FileVersion", "@PROJECT_VERSION@"
-      VALUE "ProductName", "Llamasoft on the ST"
+      VALUE "ProductName", "Llamasoft on the Atari"
       VALUE "ProductVersion", "@PROJECT_VERSION@"
       VALUE "OriginalFilename", "d2k.exe"
     END

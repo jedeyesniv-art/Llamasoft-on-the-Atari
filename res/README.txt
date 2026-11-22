@@ -1,7 +1,10 @@
-LLAMASOFT ON THE ST
-===================
+LLAMASOFT ON THE ATARI
+======================
 
-Jeff Minter's Atari ST games running natively on Windows with modern pad controls:
+(Called "Llamasoft on the ST" until 3.0, when a Falcon game and a Jaguar cartridge moved in.)
+
+Jeff Minter's Atari ST, Falcon and Jaguar games running natively on Windows with modern pad controls.
+From the ST:
   Llamatron: 2112 (1991) and Super Gridrunner, the bonus game on the same disk
   Trip-A-Tron (1988; this is its 1992 shareware release), the light synthesiser
   Revenge of the Mutant Camels (1991, the 1 MB STE version) and its TT Megamix (1991: written for the
@@ -10,23 +13,27 @@ Jeff Minter's Atari ST games running natively on Windows with modern pad control
   Defender 2 (Arcadia 1990: Defender, Defender II and Stargate)
   Hardcore (1991), Yak's unfinished 5-level evaluation demo
   Photon Storm (Arc 1990)
-And one that isn't an ST game: Defender 2000 (Atari Jaguar, 1996), Llamasoft's remake of Defender, run by
-  d2k.exe next to the program with its own renderer (smooth motion, wide screen, high-res art). It needs the
-  cartridge image: put "Defender 2000 (1996).jag" (any .jag with "Defender" in its name) in the "game" folder
-  and it appears on the start screen. Back opens its own settings; "Return to launcher" comes back.
-The original game code runs unchanged inside a small Atari ST built into this program, plus a few optional
-improvements listed below.
+From the Falcon030:
+  Llamazap (1993): 25 stages of shoot-'em-up, written for a Falcon with a Jaguar pad. It runs on an emulated
+    Falcon030 here, and the Jaguar pad's keypad (power-ups) is a menu on LB.
+From the Jaguar:
+  Defender 2000 (1996), Llamasoft's remake of Defender (Classic, Plus and 2000), run by d2k.exe next to the
+    program with its own renderer (smooth motion, wide screen, high-res art). The start screen shows it as a
+    cartridge (game\Defender 2000 (1996).jag). Back opens its own settings; "Return to launcher" comes back.
+The original game code runs unchanged inside a small Atari ST (Falcon030, Jaguar) built into this program,
+plus a few optional improvements listed below.
 
-The games are (c) Jeff Minter / Llamasoft. Llamatron, Trip-A-Tron and Revenge were shareware ("please spread
+The games are (c) Jeff Minter / Llamasoft (Llamazap (c) 1993 Atari Corp.; Defender 2000 (c) 1995 Williams
+Electronic Games, licensed to Atari Corporation). Llamatron, Trip-A-Tron and Revenge were shareware ("please spread
 this game everywhere"); the disks in the "game" folder come from Jeff Minter's own site. Some arrived on
 crack compilation disks: only the Llamasoft games' own files were kept (the cracks' trainers are offered as
-options instead).
+options instead). Llamazap and Defender 2000 are long out of sale and are included as historic artefacts.
 
 
 SETTING UP
 ----------
 Unpack the zip anywhere and run llamatron.exe. Nothing to install. The games are the disk images (and
-Trip-A-Tron's folder) in the "game" folder.
+Trip-A-Tron's folder, Defender 2000's cartridge) in the "game" folder.
 
 Settings, high scores and a log file are kept in the "userdata" folder next to the program (each game other
 than Llamatron and Gridrunner in a folder of its own there).
@@ -56,7 +63,7 @@ The disks on a carousel: pick a game.
   X               the game's docs, where there are some: the disk's own notes or reader, Gridrunner's
                   GAME SECRETS pages (A next page, B back), Trip-A-Tron's manual (the PDF is in Extras\),
                   Andes Attack: Yak's essay on its reviews, from Gridrunner, Photon Storm's manual
-                  (typed in by Parasite of LSD; game\docs). In the text viewer: up /
+                  (typed in by Parasite of LSD; game\docs), Llamazap's manual. In the text viewer: up /
                   down scroll, LB / RB or the right stick turn pages, B back
   B, B            quit
 Keyboard: cursor keys, Enter, H = how to play, X = docs, F9 = CRT look, Esc twice = quit.
@@ -245,6 +252,38 @@ The guns ride the four edges of the field and fire by themselves; the puck ricoc
 Keyboard: P pause, O resume, S strobes, N next level. Yak's notes for its testers are on the how-to-play page.
 
 
+LLAMAZAP - XBOX PAD
+-------------------
+Save the galaxy's beasts over 25 stages: fly a ship, and every 5th stage fight on hoof (its controls show
+before it starts). Kills drop tokens: they buy power-ups.
+  Left stick / d-pad   fly / move                 A or RT         fire (hold)       X   fire too (C)
+  B                    on hoof: jump; in a ship: lock the fire angle
+  LB (hold)            the power-up menu: the game stops, the right stick picks a power-up (the game's own
+                       icons, names and costs), let go of LB to buy it; B in the menu clears the pick
+  R3                   change ship (1 token)
+  Picking a ship       X Phoenix, A Falcon, B Condor (the easy one)
+  Right stick          aims the shots on the Llamatron stages (5 and 21); let go: the game's own aim
+  Start                pause (B there: back to the start menu)
+  Y                    on the player names menu: rename the one picked
+Keyboard: cursor keys, Z fire, X = B, C, the digits = the Jaguar keypad, O option, P pause, Esc start menu.
+Settings, LLAMAZAP: START AT STAGE (1-25), TWIN STICK (LLAMATRON), EFFECTS VOLUME, STEREO, and STOCK FALCON (the
+Falcon's own speed and 25 frames a second, no remaster). Its manual is on X at the start screen; the manual's
+word check at the start is answered for you.
+
+
+DEFENDER 2000 - XBOX PAD
+------------------------
+It runs as its own program (d2k.exe) with its own settings menu (Back: controls, picture, save states, volume,
+and "Return to launcher").
+  D-pad / left stick   fly                        A               fire
+  RT                   thrust                     LB or LT        reverse
+  B or RB              smart bomb                 X               lightning laser (Plus)
+  Y                    option                     Start           pause
+In its menus: A select, B back. Keyboard: arrows, Z fire, Space thrust, Shift reverse, C bomb, Esc menu.
+Picture (its menu, or keys): F8 native renderer / the Jaguar's own picture, F7 smooth motion, F6 wide screen,
+F4 high-res art, F9 CRT, F11 fullscreen.
+
+
 THE REMASTER: WHAT'S BETTER, AND WHAT ISN'T CHANGED
 ---------------------------------------------------
 Every game here is the original program, byte for byte, running in a small Atari ST inside this app. The
@@ -277,6 +316,7 @@ And:
 - Run-ahead (F7 or Settings, default 2 frames): a copy of the game runs a frame or two ahead with your
   controls, so the picture answers the pad quicker than the original did on a real ST.
 - Savestates in every game (Settings, SAVE STATES; F2 / F4): four slots each, kept between sessions.
+- Real disk labels on the start screen: scans of the originals where they exist, hand-drawn ones elsewhere.
 - Rumble from the game itself: a lost life, a smart bomb, every kill (Settings, GENERAL, RUMBLE).
 - Even volume: every game is brought to the same loudness, with a master volume (Settings, GENERAL).
 - No screen flashes: the white flash on every kill and the red and multicolour strobes are removed (they can
@@ -288,7 +328,7 @@ And:
 
 What we changed on purpose, and how to get the original back:
 - all of the speed-ups at once ..... Settings, the game's section: STOCK ST (8 MHz everywhere, the game's
-  own frame rate, no remaster; your controls stay)
+  own frame rate, no remaster; your controls stay); Llamazap: STOCK FALCON
 - 50 frames a second ............... STOCK ST, --cpu=1, or grid_50fps=0, d2_50fps=0, photonstorm_50fps=0,
   llamazap_50fps=0 (settings.txt)
 - the remaster, run-ahead, CRT .... F8, F7 (0), F9 (off), or Settings
@@ -347,6 +387,12 @@ Written on the first run with every setting and its default. Edit it while the g
   trip_music              Trip-A-Tron's music mode (0 off, 1 pulse, 2 full; also L3 / F12)
   trip_stick_speed, trip_stick_curve, trip_stick_deadzone, trip_spiro_size   Trip-A-Tron's sticks
   trip_flow (0..1), trip_pressure, trip_gyro, trip_gyro_speed, trip_rumble   Trip-A-Tron's feel
+  llamazap_50fps          1 = Llamazap at 50 frames a second on every screen (0 = the original 25)
+  llamazap_stage          0 = Llamazap starts as the game does, 1..25 = at that stage
+  llamazap_twin_stick     1 = the right stick aims on its Llamatron stages
+  llamazap_fx_volume, llamazap_stereo   its sound effects' volume (1 = the game's) and stereo (1 = on)
+  llamazap_stock          1 = STOCK FALCON
+Defender 2000 keeps its own settings in userdata\defender2000\d2k_settings.txt (its menu writes them).
 The CRT look needs a Direct3D 12 graphics card (any from the last ten years); without one the picture is
 shown plain.
 
@@ -361,7 +407,7 @@ COMMAND LINE OPTIONS
   --aim=8 / --aim=analog   aiming for this run only
   --disk=<file>         use this disk image
   --program=GRIDRUNR.PRG   start Super Gridrunner directly, no start screen (also TRON1MEG.PRG, TRIP.PRG,
-                        REVSTE1M.TOS, ANDES.BOY, DEFENDR2.PRG, HARDCORE.PRG, PHOTON.YAK)
+                        REVSTE1M.TOS, ANDES.BOY, DEFENDR2.PRG, HARDCORE.PRG, PHOTON.YAK, LLAMAZAP.PRG)
   --entry-lane          Super Gridrunner: the original entry lane (snakes hidden until they come down)
 
 
@@ -369,9 +415,14 @@ CREDITS
 -------
 Llamatron, Super Gridrunner, Trip-A-Tron, Revenge of the Mutant Camels, Andes Attack, Hardcore: Jeff Minter
 (yak) / Llamasoft. Defender 2: Jeff Minter for Arcadia, 1990. Photon Storm: Jeff Minter / Arc, 1990.
+Llamazap: Jeff Minter / Llamasoft, (c) 1993 Atari Corp. Defender 2000: Llamasoft, 1996, (c) 1995 Williams
+Electronic Games, licensed to Atari Corporation.
 This PC version uses SDL 3, the Musashi 68000 emulator and SoftFloat (see licenses\THIRD-PARTY-NOTICES.txt).
-The remaster and the CRT shaders are this project's own. The disk labels on the start screen were
-hand-written by the author. Trip-A-Tron's manual: James "Piku" Grimwood's 2003 transcription. Photon
-Storm's manual: typed in by Parasite of LSD.
+d2k.exe (Defender 2000) uses the Virtual Jaguar core and is GPL-3 (licenses\VIRTUAL-JAGUAR-GPL-3.txt); its
+source: https://github.com/jedeyesniv-art/Llamatron-PC-Recomp
+The remaster and the CRT shaders are this project's own. The disk labels on the start screen are scans of the
+originals (from Atarimania) where they exist, otherwise drawn by the author. Trip-A-Tron's manual: James
+"Piku" Grimwood's 2003 transcription. Photon Storm's manual: typed in by Parasite of LSD. Llamazap's manual:
+typed in from the original's pages for this project.
 
 Thanks, Yak.

@@ -1,5 +1,6 @@
-# Llamasoft on the ST (was "Llamatron PC" until 1.2.0) - Jeff Minter's Atari ST games, native on PC
-Title from 1.3.0 (owner 2026-11-01); the exe is still llamatron.exe, the repo Llamatron-PC-Recomp. Labels (2026-11-07): the
+# Llamasoft on the Atari (was "Llamasoft on the ST" until 3.0.0, "Llamatron PC" until 1.2.0) - Jeff Minter's Atari ST games, native on PC
+Title from 3.0.0 (owner 2026-11-22: "we have broadened out"; "on the ST" from 1.3.0); the exe is still llamatron.exe,
+the repo Llamatron-PC-Recomp, the zips LlamasoftOnTheAtari-<ver>; the owner's test build keeps dist\LlamasoftOnTheSTRemaster. Labels (2026-11-07): the
 owner redrew every label digitally (res/labels/sheet-1..3.png, committed: no room in them); make_labels.py SHEETS
 cuts each cell, border included, scaled evenly onto white (the bottom row's cells are taller: narrower boxes).
 Real labels (2026-11-20, owner: "real where we have them", full colour): Atarimania's disk scans of Llamazap, Andes

@@ -555,7 +555,7 @@ GameEnd RunGame(Context& c, const std::string& program_name, bool direct, input:
     if (error.empty()) error = program_name + " not found on the disk";
     std::string msg = c.disk_path + ":\n" + error;
     LOG("%s", msg.c_str());
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Llamasoft on the ST", msg.c_str(), c.window);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Llamasoft on the Atari", msg.c_str(), c.window);
     return GameEnd::kError;
   }
   LOG("starting %s: %zu bytes, %zu relocations", program_name.c_str(), program.text.size(), program.relocs.size());
@@ -1591,7 +1591,7 @@ int main(int argc, char** argv) {
   // Picture height in a 320-wide space: PAL pixel aspect (14.75 / 8) / 2 = 0.92 -> 200 / 0.92 = 217.
   c.view_h = opt.pal_aspect ? int(std::lround(st::kScreenH * 2.0 * 8.0 / 14.75)) : st::kScreenH;
   if (!opt.headless) {
-    c.window = SDL_CreateWindow("Llamasoft on the ST", opt.window_w > 0 ? opt.window_w : st::kScreenW * 4,
+    c.window = SDL_CreateWindow("Llamasoft on the Atari", opt.window_w > 0 ? opt.window_w : st::kScreenW * 4,
                                 opt.window_h > 0 ? opt.window_h : st::kScreenH * 4,
                                 SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     c.renderer = crt::CreateRenderer(c.window);

@@ -16,7 +16,7 @@ namespace {
 
 // Each game's loudness in play (ITU BS.1770 integrated, LUFS: tools/loudness.py over headless --wav recordings of about
 // a minute of play with the music on, logs/loud/, 2026-11-18). The gain brings it to kTarget (at most kMaxGainDb).
-// In Llamasoft on the ST (2026-11-22) only d2k is used, levelled to the ST games' -23 LUFS (games.cpp NormalGainDb).
+// In Llamasoft on the Atari (2026-11-22) only d2k is used, levelled to the ST games' -23 LUFS (games.cpp NormalGainDb).
 struct Measured {
   const char* game;
   float lufs;

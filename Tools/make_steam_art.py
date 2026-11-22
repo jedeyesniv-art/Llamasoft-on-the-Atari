@@ -1,4 +1,4 @@
-"""Steam library art for "Llamasoft on the ST" (owner 2026-11-07), in the cover's style (Tools/make_cover.py): the
+"""Steam library art for "Llamasoft on the Atari" ("Llamasoft on the ST" until 3.0; owner 2026-11-07), in the cover's style (Tools/make_cover.py): the
 title in the program's 8 x 8 font with the Llamasoft raster gradient, the program's llama on its badge, rainbow raster
 lines, and tiles of the games as the app shows them (screenshots through each game's own CRT++ look).
 Writes res/steam/: capsule.png 600 x 900 (library portrait), wide.png 920 x 430 (horizontal capsule), hero.png
@@ -29,7 +29,8 @@ OWN_PIC = ((SHOT_W - SHOT_H * 320 / 217) / 2, 0, (SHOT_W + SHOT_H * 320 / 217) /
 # its whole width.
 # own/ = the owner's captures (2026-11-07: title screens through the app's CRT++, from their Videos\Captures;
 # Grid / Revenge / Hardcore are 4K frames with the side bars, Grid's pad hint line below y 1830); ours (a windowed
-# run's 1920 x 1200) for Defender II's title.
+# run's 1920 x 1200) for Defender II's and Llamazap's titles; Defender 2000's from d2k.exe --winshots (3840 x 2160,
+# its own CRT look, the 4:3 picture in the middle).
 PICKS = {
     'llamatitle': ('own/Llamatron.png', None, 0.5, 0.5, 'fit'),
     'gridrunner': ('own/Grid.png', (328, 0, 3511, 1825), 0.5, 0.5, 1.07),
@@ -39,12 +40,15 @@ PICKS = {
     'defender2': ('defender2_1550.bmp', OWN_PIC, 0.5, 0.42, 1.12),
     'hardcore': ('own/Hardcore.png', (328, 0, 3511, 2160), 0.5, 0.5, 1.0),
     'photonstorm': ('own/photon.png', None, 0.5, 0.45, 'fit'),
+    'llamazap': ('llamazap_950.bmp', (221, 0, 1700, 1200), 0.5, 0.5, 'fit'),
+    'defender2000': ('d2k_title.bmp', (420, 0, 3350, 2082), 0.5, 0.5, 'fit'),
 }
 
 RAINBOW = [st(c) for c in [(7, 0, 0), (7, 3, 0), (7, 6, 0), (3, 7, 0), (0, 7, 3), (0, 5, 7), (2, 2, 7), (6, 0, 7)]]
 GRAD = [st(c) for c in [(7, 7, 4), (7, 7, 2), (7, 7, 0), (7, 6, 0), (7, 5, 0), (7, 5, 0), (7, 4, 0), (7, 3, 0),
                         (7, 3, 0), (7, 2, 0), (7, 2, 1), (7, 1, 1), (6, 1, 2), (6, 0, 2), (5, 0, 3), (4, 0, 3)]]
-TITLE, SUB = 'LLAMASOFT ON THE ST', "JEFF MINTER'S ATARI ST GAMES"
+VERSION_LINE = '3.0 - ST FALCON JAGUAR'
+TITLE, SUB = 'LLAMASOFT ON THE ATARI', "JEFF MINTER'S ATARI GAMES"
 
 
 def tile(shots, name, w, h, fit=False):
@@ -141,6 +145,10 @@ def raster_line(img, y, height, px, phase=0):
         img.paste(RAINBOW[(x // (px * 8) + phase) % 8], (x, y, x + px * 8, y + height))
 
 
+TEN = ['llamatitle', 'gridrunner', 'llamazap', 'tripatron', 'camels', 'andes', 'defender2', 'defender2000', 'hardcore',
+       'photonstorm']
+
+
 def capsule(shots):
     """Library portrait 600 x 900: the llama and the title on stars above, six games below in a 2 x 3 grid."""
     img = Image.new('RGB', (600, 900), (0, 0, 0))
@@ -151,7 +159,7 @@ def capsule(shots):
     paste_px(img, title, 300 - title.width // 2, y)
     paste_px(img, sub, 300 - sub.width // 2, y + title.height + 14)
     raster_line(img, 290, 6, 2)
-    names = ['llamatitle', 'camels', 'gridrunner', 'andes', 'defender2', 'hardcore']
+    names = ['llamatitle', 'llamazap', 'camels', 'defender2000', 'gridrunner', 'photonstorm']
     for i, n in enumerate(names):
         x, y = (i % 2) * 301, 296 + (i // 2) * 202
         img.paste(tile(shots, n, 299, 200), (x, y + 2))
@@ -171,19 +179,18 @@ def wide(shots):
     paste_px(img, title, tx, ty)
     paste_px(img, sub, tx + (title.width - sub.width) // 2, ty + title.height + 16)
     raster_line(img, 190, 6, 2, 3)
-    names = ['llamatitle', 'camels', 'gridrunner', 'photonstorm']
+    names = ['llamatitle', 'llamazap', 'camels', 'defender2000']
     for i, n in enumerate(names):
         img.paste(tile(shots, n, 228, 232, fit=True), (i * 230 + (1 if i else 0), 198))
     return img
 
 
 def hero(shots):
-    """The page banner 1920 x 620: eight games in two rows of four (Steam puts the logo over its lower left)."""
+    """The page banner 1920 x 620: ten games in two rows of five (Steam puts the logo over its lower left)."""
     img = Image.new('RGB', (1920, 620), (0, 0, 0))
-    names = ['llamatitle', 'gridrunner', 'tripatron', 'camels', 'andes', 'defender2', 'hardcore', 'photonstorm']
-    for i, n in enumerate(names):
-        x, y = (i % 4) * 480, (i // 4) * 312
-        img.paste(tile(shots, n, 476, 306), (x + 2, y + (0 if i < 4 else 2)))
+    for i, n in enumerate(TEN):
+        x, y = (i % 5) * 384, (i // 5) * 312
+        img.paste(tile(shots, n, 380, 306, fit=(n not in ('tripatron', 'defender2'))), (x + 2, y + (0 if i < 5 else 2)))
     raster_line(img, 306, 6, 3)
     return img
 
@@ -200,20 +207,19 @@ def logo():
 
 
 def readme_cover(shots):
-    """The README's cover 1280 x 800 (res/cover.png, 2.0): four games above and four below, the llama, the title and
-    "2.0 - REMASTER" on stars between them, rainbow raster lines either side."""
+    """The README's cover 1280 x 800 (res/cover.png, 3.0): five games above and five below, the llama, the title and
+    "3.0" on stars between them, rainbow raster lines either side."""
     img = Image.new('RGB', (1280, 800), (0, 0, 0))
     th = 228  # each tile row
-    names = ['llamatitle', 'gridrunner', 'tripatron', 'camels', 'andes', 'defender2', 'hardcore', 'photonstorm']
-    for i, n in enumerate(names):
-        x, y = (i % 4) * 320, 0 if i < 4 else 800 - th
-        img.paste(tile(shots, n, 318, th, fit=(n not in ('tripatron', 'defender2'))), (x + (1 if i % 4 else 0), y))
+    for i, n in enumerate(TEN):
+        x, y = (i % 5) * 256, 0 if i < 5 else 800 - th
+        img.paste(tile(shots, n, 254, th, fit=(n not in ('tripatron', 'defender2'))), (x + (1 if i % 5 else 0), y))
     band = (th + 6, 800 - th - 6)
     stars(img, (0, band[0], 1280, band[1]), 110, 2112)
     raster_line(img, th, 6, 3)
     raster_line(img, 800 - th - 6, 6, 3, 4)
     llama, title, sub = llama_image(), title_image(5), sub_image(3)
-    remaster = text_image('2.0 - REMASTER', 4, lambda f: RAINBOW[min(7, int(f * 8))], st((0, 0, 2)))
+    remaster = text_image(VERSION_LINE, 4, lambda f: RAINBOW[min(7, int(f * 8))], st((0, 0, 2)))
     lw, lh = llama.width * 4, llama.height * 4
     gap = 44
     text_w = max(title.width, remaster.width, sub.width)

@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 namespace steam {
 namespace {
 
-constexpr const char* kName = "Llamasoft on the ST";
+constexpr const char* kName = "Llamasoft on the Atari";  // "on the ST" before 3.0.0: an older shortcut is still found (by its exe)
 constexpr uint64_t kSteamId64Base = 76561197960265728ull;  // account id = 64-bit Steam id - this
 
 // --- binary VDF ---------------------------------------------------------------------------------------------

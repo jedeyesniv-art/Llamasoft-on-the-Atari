@@ -1,11 +1,22 @@
-# Llamasoft on the ST 2.0 - Remaster
+# Llamasoft on the Atari 3.0
 
-![Llamasoft on the ST](res/cover.png)
+![Llamasoft on the Atari](res/cover.png)
 
-**Jeff Minter's Atari ST games, remastered for modern screens and pads, with the original game code running
-untouched underneath.**
+**Jeff Minter's Atari ST, Falcon and Jaguar games, remastered for modern screens and pads, with the original
+game code running untouched underneath.**
 
-Eight games from Llamasoft's ST years:
+(Until 3.0 this was *Llamasoft on the ST*. Then a Falcon game and a Jaguar cartridge moved in.)
+
+New in 3.0:
+
+- **Llamazap** (Atari Falcon030, 1993): Minter's Falcon shooter, 25 stages over five levels. Playing it
+  properly used to mean a Falcon with an Atari Jaguar pad plugged in, because its power-ups are bought on the
+  Jaguar pad's number keypad. Here it's complete on any pad, remastered like the ST games.
+- **Defender 2000** (Atari Jaguar, 1996): Llamasoft's Jaguar remake of Defender (Classic, Plus and 2000 modes),
+  with its own native renderer: smooth motion, wide screen and high-resolution art.
+- **Savestates in every game**, real disk labels on the carousel, and a tidier settings panel.
+
+Ten games from Llamasoft's Atari years. From the ST:
 
 - **Llamatron: 2112**
 - **Super Gridrunner**
@@ -15,6 +26,11 @@ Eight games from Llamasoft's ST years:
 - **Defender 2**: Defender, Defender II and Stargate
 - **Photon Storm**
 - **Hardcore**, Yak's unfinished evaluation demo
+
+From the Falcon030 and the Jaguar:
+
+- **Llamazap** (Falcon030)
+- **Defender 2000** (Jaguar cartridge)
 
 Top features:
 
@@ -34,8 +50,9 @@ A hobby project, not affiliated with Jeff Minter or Llamasoft.
 ## The game is the original: the remaster sits on top
 
 This isn't a remake, a rewrite or a reimplementation from memory. Each game is the original 68000 program,
-byte for byte, running in a small Atari ST built into the app. Every wave, enemy pattern, sound and score is the
-game's own, computed the way it was in 1991.
+byte for byte, running in a small Atari ST built into the app (for Llamazap, a small Falcon030; Defender 2000 runs
+on an emulated Jaguar). Every wave, enemy pattern, sound and score is the game's own, computed the way it was in
+1991.
 
 The remaster sits on top of that and doesn't touch it. The app follows the game as it draws: each time it puts
 a sprite on the screen, the remaster notes what it is and where it goes. Then it redraws those objects itself,
@@ -50,7 +67,50 @@ Claude checked game by game:
 
 Where we change something on purpose, it's listed below with the setting that turns it off.
 
-## What's new
+## What's new in 3.0
+
+### Llamazap, on any pad
+
+Llamazap is Minter's 1993 shooter for the Atari Falcon030: 25 stages over five levels, each stage a different
+style of shoot-'em-up, with Llamatron and Gridrunner turning up along the way. It was written for a Falcon with a Jaguar pad
+plugged into its enhanced joystick port, and the pad's twelve-key number keypad is how you buy power-ups
+mid-fight. That's what made it so awkward to play anywhere else. Here:
+
+- **The app emulates a Falcon030 for it:** a 68030 at 16 MHz, 4 MB of memory, the VIDEL's 256-colour
+  overscan modes, the blitter, and the Jaguar pad on the enhanced port. The game's DSP sound program is
+  stood in for by our own mixer: its MOD music and effects, **in stereo**.
+- **The keypad is gone, not lost:** hold **LB** and the game stops while a menu shows every power-up on
+  offer, with the game's own icons, names and costs. Point the right stick at one and let go to buy it. Ships
+  are picked with X, A and B, and R3 changes ship mid-game.
+- **Twin stick on the Llamatron stages:** the right stick aims the three-way spread.
+- **50 frames a second on every screen** (the original drew 25), with the **remaster and run-ahead**: an
+  interpolated, unlocked frame rate, as for the ST games.
+- **Its manual is included** (typed from the original's pages), and its manual-word protection check is
+  answered for you.
+- **START AT STAGE** in Settings lets you jump to any of the 25 stages. STOCK FALCON puts it back exactly as
+  it was.
+- Rumble, remapping, savestates and its own tuned CRT++ look, like the rest.
+
+### Defender 2000, from the Jaguar
+
+Llamasoft's 1996 Jaguar remake of Defender: Classic, Plus and Defender 2000 itself. It isn't an ST game, so it
+runs as a program of its own (`d2k.exe`, on the Virtual Jaguar core) and the start screen launches it from a
+Jaguar cartridge on the carousel. A native renderer draws the game's own objects:
+
+- **Smooth motion:** the game updates 30 times a second; here everything moves at your display's rate.
+- **Wide screen:** the game's world carries on past the 4:3 edges.
+- **High-resolution art:** the cartridge's pictures, upscaled four times.
+- CRT+ / CRT++, savestates, arcade thrust and reverse buttons, and its own settings menu on Back.
+
+### Savestates, labels and a tidier panel
+
+- **Savestates in every game:** four slots per game, kept on disk, from Settings or F2 / F4.
+- **Real labels:** disks now wear scans of their real labels where they exist, and hand-drawn art where
+  they don't.
+- **The settings panel** puts savestates and the game's own settings first. B now only closes the panel; X
+  leaves the game.
+
+## The remaster
 
 ### CRT+ and CRT++
 
@@ -209,6 +269,9 @@ Trip-A-Tron's harshest flashing palettes are calmed into gentle pulses.
 | Gridrunner: snakes shown 1.5 s before they drop | in the original they lurk half-hidden under the top rail, where shots can't reach, then drop with little warning | `--entry-lane` |
 | Gridrunner: the level select unlocks the level you died on | the original unlocked the one before | `grid_unlock_level_died=0` |
 | Defender 2 in its 60 Hz mode | the game's own option, as the arcade ran | `defender2_60hz=0` |
+| Llamazap at 50 frames a second, remaster, run-ahead | as the ST games | Settings, LLAMAZAP: STOCK FALCON (the 68030's own 16 MHz, 25 a second) |
+| Llamazap: the manual's word check answered | the code book isn't to hand | (a skip, not a choice) |
+| Llamazap: power-ups bought from a menu (LB) | pads have no keypad | the keyboard's digits are still the keypad |
 | Photon Storm: no crash in the warp | the original divides by zero about one warp in ten and crashes the ST | (a fix, not a choice) |
 | The cracked releases' prompts and nag screens | these are the copies distributed today | their trainers are offered as options |
 
@@ -220,15 +283,17 @@ Download the zip from [Releases](../../releases), unpack it anywhere and run `ll
 install. The included `README.txt` has every game's controls and the settings. Settings and high scores are
 kept in `userdata\` next to the exe.
 
-The games come from the disks Jeff Minter distributes on his own site. Llamatron, Trip-A-Tron and Revenge were
+The ST games come from the disks Jeff Minter distributes on his own site. Llamatron, Trip-A-Tron and Revenge were
 shareware: "please spread this game everywhere". Some came on crack compilation disks; only the Llamasoft
-games' own files are kept.
+games' own files are kept. Llamazap and Defender 2000 are long out of sale and are included as historic
+artefacts.
 
 ## How it works
 
-The app is a high-level Atari ST: the 68000 runs on the [Musashi](https://github.com/kstenerud/Musashi)
+The app is a high-level Atari ST (and, for Llamazap, Falcon030): the 68000 runs on the [Musashi](https://github.com/kstenerud/Musashi)
 interpreter, and the shifter, YM2149 sound chip, MFP timers, keyboard processor, STE DMA sound and enough of
-TOS and GEM are emulated in C++. The disks are read straight from .msa, .st and Pasti .stx images. SDL 3
+TOS and GEM are emulated in C++. Defender 2000 runs on a patched [Virtual
+Jaguar](https://github.com/libretro/virtualjaguar-libretro) core with our own renderer on top. The disks are read straight from .msa, .st and Pasti .stx images. SDL 3
 handles video, sound and pads.
 
 The remaster hooks each game's own drawing routines: sprite blitters, dot plotters, line and terrain drawers.
@@ -247,7 +312,7 @@ cd Llamatron-PC-Recomp
 cmd /c build.bat
 ```
 
-That gives `build\llamatron.exe`. It looks for the disk images in `game\` next to the exe, the exe's folder,
+That gives `build\llamatron.exe` and `build\d2k.exe`. It looks for the disk images in `game\` next to the exe, the exe's folder,
 or the nearest `Private\` folder up the tree. `Tools\package_portable.ps1 -Release` builds the release zip.
 
 ## Credits and licence
@@ -255,11 +320,15 @@ or the nearest `Private\` folder up the tree. `Tools\package_portable.ps1 -Relea
 The games are (c) Jeff Minter / Llamasoft:
 
 - Defender 2 was published by Arcadia (1990), Photon Storm by Arc (1990).
+- Llamazap: (c) 1993 Atari Corp. Defender 2000: (c) 1995 Williams Electronic Games, licensed to Atari
+  Corporation; Llamasoft's game, 1996.
+- Llamazap's manual was typed in from the original's pages for this project.
 - Trip-A-Tron's manual was transcribed by James "Piku" Grimwood (2003).
 - Photon Storm's manual was typed in by Parasite of LSD.
 
 This project's code is MIT No Attribution (see `LICENSE`); the CRT shader presets in `crt-shaders\` are MIT.
 Third-party code: SDL (zlib), Musashi (MIT-style), SoftFloat 2b, ayumi levels (MIT), miniaudio (public
-domain / MIT-0). See `licenses\THIRD-PARTY-NOTICES.txt`.
+domain / MIT-0). `d2k.exe` includes the Virtual Jaguar core, so it is GPL-3 as a whole (its source is in this
+repository: `src/d2k`, `third_party/virtualjaguar`). See `licenses\THIRD-PARTY-NOTICES.txt`.
 
-Thanks, Yak. These games are as mad and as brilliant as they were in 1991.
+Thanks, Yak. These games are as mad and as brilliant as they were in 1991 (and 1993, and 1996).

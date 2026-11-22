@@ -10,10 +10,11 @@ This program contains code from the following projects. Their licences follow.
 5. miniaudio 0.11.21 by David Reid - https://github.com/mackron/miniaudio - public domain or MIT-0 (below)
 6. Virtual Jaguar (libretro/virtualjaguar-libretro, with our changes) - GPL version 3, in d2k.exe only
    (Defender 2000). Its licence is VIRTUAL-JAGUAR-GPL-3.txt next to this file; d2k.exe as a whole is GPL-3,
-   and its source (with the core) is in the project's repository: src/d2k, third_party/virtualjaguar.
+   and its source (with the core) is in the project's repository, https://github.com/jedeyesniv-art/Llamatron-PC-Recomp
+   (src/d2k, third_party/virtualjaguar).
 
-Llamatron itself is (c) 1991 Jeff Minter / Llamasoft. The game is not included in this program; it runs the
-player's own copy of the game disk.
+The games are (c) Jeff Minter / Llamasoft (Defender 2000: (c) 1995 Williams Electronic Games, licensed to
+Atari Corporation). This program's code doesn't contain them: it runs the disk images and cartridge in game\.
 
 ==============================================================================================================
 1. SDL 3

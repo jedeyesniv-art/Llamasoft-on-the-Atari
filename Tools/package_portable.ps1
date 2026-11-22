@@ -1,10 +1,10 @@
-# "Llamasoft on the ST" (the project's title from 1.3.0; the exe stays llamatron.exe).
-# Builds Release and assembles the portable folder dist\LlamasoftOnTheST\:
+# "Llamasoft on the Atari" (the project's title from 3.0.0; "Llamasoft on the ST" from 1.3.0; the exe stays llamatron.exe).
+# Builds Release and assembles the portable folder dist\LlamasoftOnTheAtari\:
 #   llamatron.exe (static runtime: no DLLs), README.txt, licenses\, game\ with every game (see below), Extras\. The PDB
 #   goes to dist\symbols\.
-# -Release also writes dist\release\LlamasoftOnTheST-<version>-windows.zip (top folder "Llamasoft on the ST", with
+# -Release also writes dist\release\LlamasoftOnTheAtari-<version>-windows.zip (top folder "Llamasoft on the Atari", with
 # game\; no unpacked game files besides Trip-A-Tron's folder, no userdata or logs - checked) and
-# LlamasoftOnTheST-<version>-symbols.zip.
+# LlamasoftOnTheAtari-<version>-symbols.zip.
 #
 # The games (owner 2026-11-01: Llamasoft only - the compilation disks' other games don't ship):
 #   Llamatron ST.msa (Llamatron + Super Gridrunner), Trip-A-Tron\ (TRIP_A_T.RON's files), the Revenge 1 MB STE
@@ -18,7 +18,7 @@
 param(
     [switch]$SkipBuild,
     [switch]$Release,
-    [string]$Folder = "LlamasoftOnTheST"
+    [string]$Folder = "LlamasoftOnTheAtari"
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,7 +134,7 @@ Write-Host "portable folder: $dist (version $version)"
 if ($Release) {
     $out = Join-Path $repo "dist\release"
     New-Item -ItemType Directory -Force $out | Out-Null
-    $stage = Join-Path $out "stage\Llamasoft on the ST"
+    $stage = Join-Path $out "stage\Llamasoft on the Atari"
     if (Test-Path (Split-Path $stage)) { Remove-Item -Recurse -Force (Split-Path $stage) }
     New-Item -ItemType Directory -Force $stage | Out-Null
     Copy-Item $exe, $d2k, (Join-Path $repo "res\README.txt") $stage
@@ -148,9 +148,9 @@ if ($Release) {
         ($_.Extension -in ".prg", ".tos", ".yak", ".cow", ".bin", ".log", ".boy" -and $_.FullName -notmatch "\\Trip-A-Tron\\") -or
         $_.Extension -in ".eeprom", ".state" -or $_.FullName -match "\\userdata" }
     if ($bad) { throw "release would contain: $($bad.FullName -join ', ')" }
-    $zip = Join-Path $out "LlamasoftOnTheST-$version-windows.zip"
+    $zip = Join-Path $out "LlamasoftOnTheAtari-$version-windows.zip"
     Compress-Archive -Path $stage -DestinationPath $zip -Force
-    Compress-Archive -Path (Join-Path $symbols "llamatron.pdb"), (Join-Path $symbols "d2k.pdb") -DestinationPath (Join-Path $out "LlamasoftOnTheST-$version-symbols.zip") -Force
+    Compress-Archive -Path (Join-Path $symbols "llamatron.pdb"), (Join-Path $symbols "d2k.pdb") -DestinationPath (Join-Path $out "LlamasoftOnTheAtari-$version-symbols.zip") -Force
     Remove-Item -Recurse -Force (Split-Path $stage)
     Write-Host "release: $zip"
 }

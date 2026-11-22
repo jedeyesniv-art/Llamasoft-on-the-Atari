@@ -629,7 +629,7 @@ void Launcher::Render() {
                       std::to_string(selected_ + 1) + " / " + std::to_string(Count()) + " >";
     DrawText(pos.c_str(), p.x, p.y + 14 * s, s * 0.9f, {90, 90, 100, 255}, true);
   }
-  DrawText("LLAMASOFT ON THE ATARI ST", w / 2, h * 0.06f, s, {120, 120, 135, 255}, true);
+  DrawText("LLAMASOFT ON THE ATARI", w / 2, h * 0.06f, s, {120, 120, 135, 255}, true);
   const char* hint = SDL_GetTicks() < quit_armed_ms_ ? "PRESS {B} AGAIN TO QUIT"
                      : picked.settings ? "LEFT/RIGHT CHOOSE    {A} OPEN    {Y} WHAT'S HERE    {B} QUIT"
                      : size_t(selected_) < docs_.size() && docs_[size_t(selected_)]
